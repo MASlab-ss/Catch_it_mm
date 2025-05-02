@@ -1,0 +1,163 @@
+<mujoco model="scout_piper_base">
+    <compiler angle="radian" meshdir="/home/ss/catch_it/assets/meshes_mujoco" autolimits="true"/>
+    <option integrator="Euler" timestep="0.001"/> <!-- 表示仿真器使用rk4（四阶龙阁库塔积分器）作为数值仿真器 -->
+    <!-- <size njmax="500" nconmax="100" />  物理引擎的最大关节数和接触数 -->
+    <asset>
+        <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
+        <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
+        markrgb="0.8 0.8 0.8" width="300" height="300"/>
+        <texture file="/home/ss/catch_it/assets/textures/light-wood.png" name="woodplane" type="2d"/>
+        <material name="groundplane" texture="woodplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+        <!-- object-bottle -->
+        <mesh file="/home/ss/catch_it/assets/meshes/bottle.stl" name="bottle_mesh" scale="0.8 0.8 0.8"/>
+        <texture type="skybox" file="/home/ss/catch_it/assets/textures/glass.png" name="tex-glass"/>
+        <material name="glass" reflectance="0.5" texrepeat="5 5" texture="tex-glass" texuniform="true"/>
+        <mesh file="../meshes/bread.stl" name="bread_mesh" scale="1 1 1"/>
+        <mesh file="../meshes/cup.stl" name="cup_mesh" scale="0.7 0.7 0.7"/>
+        <mesh file="../meshes/bowl.stl" name="bowl_mesh" scale="0.7 0.7 0.7"/>
+        <mesh file="../meshes/winnercup.stl" name="winnercup_mesh" scale="3e-4 3e-4 3e-4"/>
+        <mesh name="base_link" file="base_link.STL" />
+        <mesh name="link1" file="link1.STL" />
+        <mesh name="link2" file="link2.STL" />
+        <mesh name="link3" file="link3.STL" />
+        <mesh name="link4" file="link4.STL" />
+        <mesh name="link5" file="link5.STL" />
+        <mesh name="link6" file="link6.STL" />
+        <mesh name="link7" file="link7.STL" />
+        <mesh name="link8" file="link8.STL" />
+        <material name="my_color" rgba="1 0 0 1"/>
+        <material name="car_body_material" rgba="0.8 0.8 0.8 1" reflectance="0.7" shininess="0.9"/>
+    </asset>
+        <default>
+        <joint damping="1"/> <!-- 关节的默认阻尼值 -->
+    </default>
+    <worldbody>
+        <light pos="0 0 10" dir="0 0 -1" directional="true" diffuse="0.7 0.7 0.7" castshadow="true"/>
+        <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+        <body name="base_link" pos="0 0 0.23479" >
+            <inertial pos="0 0 0" quat="0.707107 0 0 0.707107" mass="50" diaginertia="0.1361 0.1171 0.1171" />
+            <joint name="dummy_joint" type="free" />
+            <geom size="0.4625 0.19 0.105" pos="0 0 0.008" type="box" material="car_body_material"/>
+            <geom size="0.0770833 0.3135 0.035" pos="0 0 0.035" type="box" material="car_body_material"/>
+            <geom pos="0.275 0 0.122701" type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="base_link" />
+            <geom size="0.35 0.135 0.005" pos="-0.025 0 0.117701" type="box" material="car_body_material" />
+            <geom size="0.1375 0.0875 0.0775" pos="-0.2375 0 0.200201" type="box" material="car_body_material" />
+            <geom size="0.02 0.02 0.015" pos="-0.265 0.115 0.137701" type="box" material="car_body_material" />
+            <geom size="0.02 0.02 0.015" pos="-0.265 -0.115 0.137701" type="box" material="car_body_material" />
+            <geom size="0.02 0.02 0.25" pos="-0.305 0.115 0.372701" type="box" material="car_body_material" />
+            <geom size="0.02 0.02 0.25" pos="-0.305 -0.115 0.372701" type="box" material="car_body_material" />
+            <geom size="0.02 0.02 0.25" pos="-0.065 0.115 0.372701" type="box" material="car_body_material" />
+            <geom size="0.02 0.02 0.25" pos="-0.065 -0.115 0.372701" type="box" material="car_body_material" />
+            <geom size="0.165 0.135 0.005" pos="-0.21 0 0.417701" type="box" material="car_body_material" />
+            <geom size="0.09 0.115 0.03" pos="-0.185 0 0.452701" type="box" material="car_body_material" />
+            <geom size="0.1 0.02 0.02" pos="-0.185 0.115 0.342701" type="box" material="car_body_material" />
+            <geom size="0.1 0.02 0.02" pos="-0.185 -0.115 0.342701" type="box" material="car_body_material" />
+            <geom size="0.02 0.095 0.02" pos="-0.305 0 0.392701" type="box" material="car_body_material" />
+            <geom size="0.02 0.095 0.02" pos="-0.065 0 0.392701" type="box" material="car_body_material" />
+            <geom size="0.1 0.02 0.02" pos="-0.185 0.115 0.602701" type="box" material="car_body_material" />
+            <geom size="0.1 0.02 0.02" pos="-0.185 -0.115 0.602701" type="box" material="car_body_material" />
+            <geom size="0.02 0.095 0.02" pos="-0.305 0 0.602701" type="box" material="car_body_material" />
+            <geom size="0.02 0.095 0.02" pos="-0.065 0 0.602701" type="box" material="car_body_material" />
+            <geom size="0.14 0.135 0.005" pos="-0.185 0 0.627701" type="box" material="car_body_material" />
+            <geom size="0.04267 0.07212" pos="-0.25 0 0.82847" type="cylinder" material="car_body_material"/>
+            <body name="front_right_wheel_link" pos="0.249 -0.29153 -0.0702" quat="0.000796327 1 0 0">
+                <inertial pos="0 0 0" quat="0.707107 0 0 0.707107" mass="2" diaginertia="0.1361 0.1171 0.1171" />
+                <joint name="front_right_wheel" pos="0 0 0" axis="0 -1 0" frictionloss="1" />
+                <geom name="front_right_wheel" size="0.16459 0.058265" quat="0.707107 0.707106 0 0" type="cylinder" />
+            </body>
+            <body name="front_left_wheel_link" pos="0.249 0.29153 -0.0702">
+                <inertial pos="0 0 0" quat="0.707107 0 0 0.707107" mass="2" diaginertia="0.1361 0.1171 0.1171" />
+                <joint name="front_left_wheel" pos="0 0 0" axis="0 -1 0" frictionloss="1" />
+                <geom name="front_left_wheel" size="0.16459 0.058265" quat="0.707107 0.707106 0 0" type="cylinder" />
+            </body>
+            <body name="rear_left_wheel_link" pos="-0.249 0.29153 -0.0702">
+                <inertial pos="0 0 0" quat="0.707107 0 0 0.707107" mass="2" diaginertia="0.1361 0.1171 0.1171" />
+                <joint name="rear_left_wheel" pos="0 0 0" axis="0 -1 0" frictionloss="1" />
+                <geom name="rear_left_wheel" size="0.16459 0.058265" quat="0.707107 0.707106 0 0" type="cylinder" />
+            </body>
+            <body name="rear_right_wheel_link" pos="-0.249 -0.29153 -0.0702" quat="0.000796327 1 0 0">
+                <inertial pos="0 0 0" quat="0.707107 0 0 0.707107" mass="2" diaginertia="0.1361 0.1171 0.1171" />
+                <joint name="rear_right_wheel" pos="0 0 0" axis="0 -1 0" frictionloss="1" />
+                <geom name="rear_right_wheel" size="0.16459 0.058265" quat="0.707107 0.707106 0 0" type="cylinder" />
+            </body>
+            
+            <body name="piper_link1" pos="0.275 0 0.245701" quat="0.707105 0 0 -0.707108">
+                <inertial pos="0.00131676 0.000310289 -0.00922875" quat="0.557105 0.432155 0.377373 0.600388" mass="0.5" diaginertia="9.25942e-05 8.3083e-05 7.69469e-05" />
+                <joint name="piper_joint1" pos="0 0 0" axis="0 0 1" limited="true" range="-2.618 2.618" />
+                <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="link1" />
+                <body name="piper_link2" pos="0 0 0" quat="0.524588 0.474136 -0.524592 -0.474136">
+                    <inertial pos="0.147616 -0.017426 0.00175953" quat="0.0107531 0.706346 -0.0276284 0.707246" mass="0.1" diaginertia="0.00177449 0.0017305 0.000145443" />
+                    <joint name="piper_joint2" pos="0 0 0" axis="0 0 1" limited="true" range="0 3.14" />
+                    <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="link2" />
+                    <body name="piper_link3" pos="0.28503 0 0" quat="0.770418 0 0 0.637539">
+                        <inertial pos="0.0156727 0.104467 0.000508487" quat="0.506574 0.477898 -0.524055 0.490268" mass="0.1" diaginertia="0.000241862 0.000222142 0.000100381" />
+                        <joint name="piper_joint3" pos="0 0 0" axis="0 0 1" limited="true" range="-2.697 0" />
+                        <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="link3" />
+                        <body name="piper_link4" pos="0.021984 0.25075 0" quat="0.707105 -0.707108 0 0">
+                            <inertial pos="0.000276465 -0.00102804 -0.00472831" quat="0.492305 0.505285 0.503294 0.499017" mass="0.1" diaginertia="4.87057e-05 4.10595e-05 3.82001e-05" />
+                            <joint name="piper_joint4" pos="0 0 0" axis="0 0 1" limited="true" range="-1.832 1.832" />
+                            <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="link4" />
+                            <body name="piper_link5" pos="0 0 0" quat="0.707105 0.707108 0 0">
+                                <inertial pos="8.82262e-05 0.0566829 -0.0019612" quat="0.507447 0.490986 0.506887 0.494466" mass="0.1" diaginertia="5.63237e-05 4.88652e-05 4.39642e-05" />
+                                <joint name="piper_joint5" pos="0 0 0" axis="0 0 1" limited="true" range="-1.22 1.22" />
+                                <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="link5" />
+                                <body name="piper_link6" pos="0 0.091 0.0014165" quat="0.499998 -0.5 -0.5 -0.500002">
+                                    <inertial pos="1.16933e-08 0.000341211 0.0342123" quat="0.00199303 0.707103 0.0022686 0.707104" mass="0.1" diaginertia="0.000118283 9.9975e-05 4.31751e-05" />
+                                    <joint name="piper_joint6" pos="0 0 0" axis="0 0 1" limited="true" range="-3.14 3.14" />
+                                    <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="link6" />
+                                    <body name="piper_link7" pos="-0.0001 0 0.13503" quat="0.499998 0.5 0.500002 0.5">
+                                        <inertial pos="-0.000277778 -0.0467673 -0.00921029" quat="0.46134 0.536174 -0.553273 0.439968" mass="0.01" diaginertia="1.45134e-05 1.00041e-05 5.87021e-06" />
+                                        <joint name="piper_joint7" pos="0 0 0" axis="0 0 -1" type="slide" limited="true" range="0 0.04" />
+                                        <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="link7" />
+                                    </body>
+                                    <body name="piper_link8" pos="0.0001 0 0.13503" quat="0.499998 -0.5 -0.500002 0.5">
+                                        <inertial pos="0.000277817 0.0467674 -0.0092103" quat="0.553273 0.439968 -0.46134 0.536174" mass="0.01" diaginertia="1.45133e-05 1.0004e-05 5.87021e-06" />
+                                        <joint name="piper_joint8" pos="0 0 0" axis="0 0 1" type="slide" limited="true" range="-0.04 0" />
+                                        <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="link8" />
+                                    </body>
+                                </body>
+                            </body>
+                        </body>
+                    </body>
+                </body>
+            </body>
+        </body>
+        <body name="object" pos="0.4 1.25 1.2">
+        <inertial pos="0.0 0 0" quat="1 0.0 -0.0 -0.0" mass="0.25" diaginertia="7.33516e-05 7.33516e-05 7.33516e-05" />
+        <joint name='object' type='free' damping="0.1" />
+        <!-- Training Objects -->
+        <geom name='object' type="box" size="0.02 0.025 0.02" solimp="0.998 0.998 0.001" solref="0.02 1" density="100" friction="0.95 0.3 0.1" rgba="1.0 0.0 0.0 1" group="0" condim="4"/>
+        <!-- Evaluation Objects -->
+        <!-- <geom name='object' mesh="bread_mesh" type="mesh" solimp="0.998 0.998 0.001" solref="0.001 1" density="50" friction="0.95 0.3 0.1" group="0" condim="4"/> -->
+        </body>   
+    </worldbody>
+    <contact>
+    <pair name = "floor_wheel_1" geom1 = "floor" geom2 = "front_right_wheel" friction = "1.0 1.0 0.02 0.01 0.01"/>
+    <pair name = "floor_wheel_2" geom1 = "floor" geom2 = "front_left_wheel" friction = "1.0 1.0 0.02 0.01 0.01"/>
+    <pair name = "floor_wheel_4" geom1 = "floor" geom2 = "rear_right_wheel" friction = "1.0 1.0 0.02 0.01 0.01"/>
+    <pair name = "floor_wheel_3" geom1 = "floor" geom2 = "rear_left_wheel" friction = "1.0 1.0 0.02 0.01 0.01"/>
+    <exclude name = "exclude_body_wheel_1" body1="base_link" body2="front_right_wheel_link" />
+    <exclude name = "exclude_body_wheel_2" body1="base_link" body2="front_left_wheel_link" />
+    <exclude name = "exclude_body_wheel_3" body1="base_link" body2="rear_left_wheel_link" />
+    <exclude name = "exclude_body_wheel_4" body1="base_link" body2="rear_right_wheel_link" />
+    </contact>
+    <actuator>
+    <!-- base actuators -->
+    <!-- <motor name="base_sfl" joint="front_left_wheel" ctrlrange="-7.5 7.5" />
+    <motor name="base_sfr" joint="front_right_wheel" ctrlrange="-7.5 7.5" />
+    <motor name="base_srl" joint="rear_left_wheel" ctrlrange="-7.5 7.5" />
+    <motor name="base_srr" joint="rear_right_wheel" ctrlrange="-7.5 7.5" /> -->
+    <motor name="base_dfl" joint="front_left_wheel" ctrlrange="-40.19 40.19" />
+    <motor name="base_dfr" joint="front_right_wheel" ctrlrange="-40.19 40.19" />
+    <motor name="base_drl" joint="rear_left_wheel" ctrlrange="-40.19 40.19" />
+    <motor name="base_drr" joint="rear_right_wheel" ctrlrange="-40.19 40.19" />
+    <!-- xarm actuators -->
+    <motor name="arm_actuator_1" joint="piper_joint1" ctrlrange="-100 100" />
+    <motor name="arm_actuator_2" joint="piper_joint2" ctrlrange="-100 100" />
+    <motor name="arm_actuator_3" joint="piper_joint3" ctrlrange="-100 100" />
+    <motor name="arm_actuator_4" joint="piper_joint4" ctrlrange="-100 100" />
+    <motor name="arm_actuator_5" joint="piper_joint5" ctrlrange="-100 100" />
+    <motor name="arm_actuator_6" joint="piper_joint6" ctrlrange="-100 100" />
+    <!-- <motor name="object_actuator" joint="object" gear="0 0 1 0 0 0" ctrlrange = "-50 50" /> -->
+    </actuator>
+</mujoco>

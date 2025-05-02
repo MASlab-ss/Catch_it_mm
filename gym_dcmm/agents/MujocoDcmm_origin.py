@@ -10,7 +10,7 @@ import copy
 import configs.env.DcmmCfg as DcmmCfg
 import mujoco
 from utils.util import calculate_arm_Te
-from utils.pid import PID, GripperPID
+from utils.pid import PID
 import numpy as np
 from utils.ik_pkg.ik_arm import IKArm
 from utils.ik_pkg.ik_base import IKBase
@@ -77,15 +77,15 @@ class MJ_DCMM(object):
         self.model_arm.opt.timestep = timestep
         self.data = mujoco.MjData(self.model)
         self.data_arm = mujoco.MjData(self.model_arm)
-        self.data.qpos[11:17] = DcmmCfg.arm_joints[:]
-        self.data.qpos[17:19] = DcmmCfg.hand_joints[:]
+        self.data.qpos[15:21] = DcmmCfg.arm_joints[:]
+        self.data.qpos[21:37] = DcmmCfg.hand_joints[:]
         self.data_arm.qpos[0:6] = DcmmCfg.arm_joints[:]
 
         mujoco.mj_forward(self.model, self.data)
         mujoco.mj_forward(self.model_arm, self.data_arm)
-        self.arm_base_pos = self.data.body("piper_link1").xpos
-        self.current_ee_pos = copy.deepcopy(self.data_arm.body("piper_link6").xpos)
-        self.current_ee_quat = copy.deepcopy(self.data_arm.body("piper_link6").xquat)
+        self.arm_base_pos = self.data.body("arm_base").xpos
+        self.current_ee_pos = copy.deepcopy(self.data_arm.body("link6").xpos)
+        self.current_ee_quat = copy.deepcopy(self.data_arm.body("link6").xquat)
 
         ## Get the joint ID for the body, base, arm, hand and object
         # Note: The joint id of the mm body is 0 by default
@@ -97,7 +97,7 @@ class MJ_DCMM(object):
             raise ValueError
         self.object_name = object_name
         # Get the geom id of the hand, the floor and the object
-        self.hand_start_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, 'piper_link7') - 1
+        self.hand_start_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, 'mcp_joint') - 1
         self.floor_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, 'floor')
         self.object_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, self.object_name)
 
@@ -105,9 +105,9 @@ class MJ_DCMM(object):
         self.rp_base = np.zeros(3)
         self.rp_ref_base = np.zeros(3)
         self.drive_pid = PID("drive", DcmmCfg.Kp_drive, DcmmCfg.Ki_drive, DcmmCfg.Kd_drive, dim=4, llim=DcmmCfg.llim_drive, ulim=DcmmCfg.ulim_drive, debug=False)
-        # self.steer_pid = PID("steer", DcmmCfg.Kp_steer, DcmmCfg.Ki_steer, DcmmCfg.Kd_steer, dim=4, llim=DcmmCfg.llim_steer, ulim=DcmmCfg.ulim_steer, debug=False)
+        self.steer_pid = PID("steer", DcmmCfg.Kp_steer, DcmmCfg.Ki_steer, DcmmCfg.Kd_steer, dim=4, llim=DcmmCfg.llim_steer, ulim=DcmmCfg.ulim_steer, debug=False)
         self.arm_pid = PID("arm", DcmmCfg.Kp_arm, DcmmCfg.Ki_arm, DcmmCfg.Kd_arm, dim=6, llim=DcmmCfg.llim_arm, ulim=DcmmCfg.ulim_arm, debug=False)
-        self.hand_pid = GripperPID(DcmmCfg.Kp_hand, DcmmCfg.Ki_hand, DcmmCfg.Kd_hand, llim=DcmmCfg.llim_hand, ulim=DcmmCfg.ulim_hand, debug=False)
+        self.hand_pid = PID("hand", DcmmCfg.Kp_hand, DcmmCfg.Ki_hand, DcmmCfg.Kd_hand, dim=16, llim=DcmmCfg.llim_hand, ulim=DcmmCfg.ulim_hand, debug=False)
         self.cmd_lin_y = 0.0
         self.cmd_lin_x = 0.0
         self.arm_act = False
@@ -119,14 +119,14 @@ class MJ_DCMM(object):
                             ps=DcmmCfg.ik_config["ps"], λΣ=DcmmCfg.ik_config["λΣ"], tol=DcmmCfg.ik_config["ee_tol"])
 
         ## Initialize the camera parameters
-        # self.model.vis.global_.offwidth = DcmmCfg.cam_config["width"]
-        # self.model.vis.global_.offheight = DcmmCfg.cam_config["height"]
-        # self.create_camera_data(DcmmCfg.cam_config["width"], DcmmCfg.cam_config["height"], DcmmCfg.cam_config["name"])
+        self.model.vis.global_.offwidth = DcmmCfg.cam_config["width"]
+        self.model.vis.global_.offheight = DcmmCfg.cam_config["height"]
+        self.create_camera_data(DcmmCfg.cam_config["width"], DcmmCfg.cam_config["height"], DcmmCfg.cam_config["name"])
 
         ## Initialize the target velocity of the mobile base
         self.target_base_vel = np.zeros(3)
         self.target_arm_qpos = np.zeros(6)
-        self.target_hand_qpos = np.zeros(2)
+        self.target_hand_qpos = np.zeros(16)
         ## Initialize the target joint positions of the arm
         self.target_arm_qpos[:] = DcmmCfg.arm_joints[:]
         ## Initialize the target joint positions of the hand
@@ -219,34 +219,30 @@ class MJ_DCMM(object):
         print("\nSimulation Timestep: ", self.model.opt.timestep)
     
     def move_base_vel(self, target_base_vel):
-        self.drive_vel = IKBase(target_base_vel[0], 0, target_base_vel[1])
-        print("self_drive_vel ikbase:", self.drive_vel)
+        self.steer_ang, self.drive_vel = IKBase(target_base_vel[0], target_base_vel[1], target_base_vel[2])
         ####################
         ## No bugs so far ##
         ####################
         # Mobile base steering and driving control 
         # TODO: angular velocity is not correct when the robot is self-rotating.
-        # current_steer_pos = np.array([self.data.joint("steer_fl").qpos[0],
-        #                               self.data.joint("steer_fr").qpos[0], 
-        #                               self.data.joint("steer_rl").qpos[0],
-        #                               self.data.joint("steer_rr").qpos[0]])
-        current_drive_vel = np.array([self.data.joint("front_left_wheel").qvel[0],
-                                      self.data.joint("front_right_wheel").qvel[0], 
-                                      self.data.joint("rear_left_wheel").qvel[0],
-                                      self.data.joint("rear_right_wheel").qvel[0]])
-        print("current_drive_vel :", current_drive_vel)
-        # mv_steer = self.steer_pid.update(self.steer_ang, current_steer_pos, self.data.time)
+        current_steer_pos = np.array([self.data.joint("steer_fl").qpos[0],
+                                      self.data.joint("steer_fr").qpos[0], 
+                                      self.data.joint("steer_rl").qpos[0],
+                                      self.data.joint("steer_rr").qpos[0]])
+        current_drive_vel = np.array([self.data.joint("drive_fl").qvel[0],
+                                      self.data.joint("drive_fr").qvel[0], 
+                                      self.data.joint("drive_rl").qvel[0],
+                                      self.data.joint("drive_rr").qvel[0]])
+        mv_steer = self.steer_pid.update(self.steer_ang, current_steer_pos, self.data.time)
         mv_drive = self.drive_pid.update(self.drive_vel, current_drive_vel, self.data.time)
-        print("pid mv_drive", mv_drive)
-        for i in range(4):
-            if current_drive_vel[i] > 0 and current_drive_vel[i] < self.drive_vel[i]:
-                mv_drive[i] = np.clip(mv_drive[i], 0, self.drive_ctrlrange[1] )
-            elif current_drive_vel[i] < 0 and current_drive_vel[i] > self.drive_vel[i]:
-                mv_drive[i] = np.clip(mv_drive[i], self.drive_ctrlrange[0], 0)
+        if np.all(current_drive_vel > 0.0) and np.all(current_drive_vel < self.drive_vel):
+            mv_drive = np.clip(mv_drive, 0, self.drive_ctrlrange[1] / 10.0)
+        if np.all(current_drive_vel < 0.0) and np.all(current_drive_vel > self.drive_vel):
+            mv_drive = np.clip(mv_drive, self.drive_ctrlrange[0] / 10.0, 0)
         
-        # mv_steer = np.clip(mv_steer, self.steer_ctrlrange[0], self.steer_ctrlrange[1])
+        mv_steer = np.clip(mv_steer, self.steer_ctrlrange[0], self.steer_ctrlrange[1])
         
-        return mv_drive
+        return mv_steer, mv_drive
     
     def move_ee_pose(self, delta_pose):
         """
@@ -257,8 +253,8 @@ class MJ_DCMM(object):
         Return:
         - The target joint positions of the arm
         """
-        self.current_ee_pos[:] = self.data_arm.body("piper_link6").xpos[:]
-        self.current_ee_quat[:] = self.data_arm.body("piper_link6").xquat[:]
+        self.current_ee_pos[:] = self.data_arm.body("link6").xpos[:]
+        self.current_ee_quat[:] = self.data_arm.body("link6").xquat[:]
         target_pos = self.current_ee_pos + delta_pose[0:3]
         r_delta = R.from_euler('zxy', delta_pose[3:6])
         r_current = R.from_quat(self.current_ee_quat)
@@ -270,7 +266,7 @@ class MJ_DCMM(object):
         mujoco.mj_fwdPosition(self.model_arm, self.data_arm)
         
         # Compute the ee_length
-        relative_ee_pos = target_pos - self.data_arm.body("piper_link1").xpos
+        relative_ee_pos = target_pos - self.data_arm.body("arm_base").xpos
         ee_length = np.linalg.norm(relative_ee_pos)
 
         return result_QP, ee_length
@@ -288,8 +284,8 @@ class MJ_DCMM(object):
     def set_throw_pos_vel(self, 
                           pose = np.array([0, 0, 0, 1, 0, 0, 0]), 
                           velocity = np.array([0, 0, 0, 0, 0, 0])):
-        self.data.qpos[18:25] = pose
-        self.data.qvel[17:23] = velocity
+        self.data.qpos[37:44] = pose
+        self.data.qvel[36:42] = velocity
 
     def action_hand2qpos(self, action_hand):
         """

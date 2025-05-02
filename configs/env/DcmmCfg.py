@@ -8,9 +8,9 @@ root = str(Path(path).parent)
 ASSET_PATH = os.path.join(root, "../../assets")
 # print("ASSET_PATH: ", ASSET_PATH)
 # Use Leap Hand
-XML_DCMM_LEAP_OBJECT_PATH = "urdf/x1_xarm6_leap_right_object.xml"
-XML_DCMM_LEAP_UNSEEN_OBJECT_PATH = "urdf/x1_xarm6_leap_right_unseen_object.xml"
-XML_ARM_PATH = "urdf/xarm6_right.xml"
+XML_DCMM_LEAP_OBJECT_PATH = "urdf/scout_piper.xml"
+XML_DCMM_LEAP_UNSEEN_OBJECT_PATH = "urdf/scout_piper.xml"
+XML_ARM_PATH = "urdf/xarm_piper.xml"
 ## Weight Saved Path
 WEIGHT_PATH = os.path.join(ASSET_PATH, "weights")
 
@@ -19,15 +19,10 @@ distance_thresh = 0.25
 
 ## Define the initial joint positions of the arm and the hand
 arm_joints = np.array([
-   0.0, 0.0, -0.0, 3.07, 2.25, -1.5 
+   0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 ])
 
-hand_joints = np.array([
-    0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0,
-])
+hand_joints = np.array([0.01, -0.01])
 
 ## Define the reward weights
 reward_weights = {
@@ -68,6 +63,8 @@ RangerMiniV2Params = {
   'max_steer_angle_parallel': 1.570,    # 180 degree
   'max_round_angle': 0.935671,
   'min_turn_radius': 0.47644,
+  'Half of the wheelbase':0.29153,
+  'scout raduis': 0.16459,
 }
 
 ## Define IK
@@ -83,9 +80,9 @@ ik_config = {
 ## Wheel Drive
 k_drive = np.array([0.75, 1.25])
 ## Wheel Steer
-k_steer = np.array([0.75, 1.25])
+k_steer = np.array([0.75, 1.25]) 
 ## Arm Joints
-k_arm = np.array([0.75, 1.25])
+k_arm = np.array([0.75, 1.25]) 
 ## Hand Joints
 k_hand = np.array([0.75, 1.25])
 ## Object Shape and Size
@@ -102,12 +99,12 @@ object_mass = np.array([0.035, 0.075])
 object_damping = np.array([5e-3, 2e-2])
 object_static = np.array([0.5, 0.75])
 ## Observation Noise
-k_obs_base = 0.01
-k_obs_arm = 0.001
-k_obs_object = 0.01
-k_obs_hand = 0.01
+k_obs_base = 0
+k_obs_arm = 0
+k_obs_object = 0
+k_obs_hand = 0
 ## Actions Noise
-k_act = 0.025
+k_act = 0
 ## Action Delay
 act_delay = {
     'base': [1,],
@@ -117,11 +114,11 @@ act_delay = {
 
 ## Define PID params for wheel drive and steering. 
 # driving
-Kp_drive = 5
+Kp_drive = 10
 Ki_drive = 1e-3
 Kd_drive = 1e-1
-llim_drive = -200
-ulim_drive = 200
+llim_drive = -20
+ulim_drive = 20
 # steering
 Kp_steer = 50.0
 Ki_steer = 2.5
@@ -130,23 +127,17 @@ llim_steer = -50
 ulim_steer = 50
 
 ## Define PID params for the arm and hand. 
-Kp_arm = np.array([300.0, 400.0, 400.0, 50.0, 200.0, 20.0])
+Kp_arm = np.array([3.0, 4.0, 4.0, 5.0, 2.0, 2.0])
 Ki_arm = np.array([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-3])
-Kd_arm = np.array([40.0, 40.0, 40.0, 5.0, 10.0, 1])
+Kd_arm = np.array([0.0, 0.0, 0, 0, 0, 0])
 llim_arm = np.array([-300.0, -300.0, -300.0, -50.0, -50.0, -20.0])
 ulim_arm = np.array([300.0, 300.0, 300.0, 50.0, 50.0, 20.0])
 
-Kp_hand = np.array([4e-1, 1e-2, 2e-1, 2e-1,
-                      4e-1, 1e-2, 2e-1, 2e-1,
-                      4e-1, 1e-2, 2e-1, 2e-1,
-                      1e-1, 1e-1, 1e-1, 1e-2,])
+Kp_hand = 100
 Ki_hand = 1e-2
-Kd_hand = np.array([3e-2, 1e-3, 2e-3, 1e-3,
-                      3e-2, 1e-3, 2e-3, 1e-3,
-                      3e-2, 1e-3, 2e-3, 1e-3,
-                      1e-2, 1e-2, 2e-2, 1e-3,])
-llim_hand = -5.0
-ulim_hand = 5.0
+Kd_hand = 0.0
+llim_hand = -10
+ulim_hand = 10
 hand_mask = np.array([1, 0, 1, 1,
                       1, 0, 1, 1,
                       1, 0, 1, 1,

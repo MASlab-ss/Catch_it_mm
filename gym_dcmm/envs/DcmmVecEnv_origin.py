@@ -27,17 +27,6 @@ from utils.util import *
 import xml.etree.ElementTree as ET
 from scipy.spatial.transform import Rotation as R
 from collections import deque
-import matplotlib.pyplot as plt
-plt.ion()
-fig, ax = plt.subplots()
-line_pos, = ax.plot([], [], label='qpos')
-line_target, = ax.plot([], [], label='target', linestyle='--')
-ax.legend()
-ax.set_xlim(0, 100)
-ax.set_ylim(-10, 10)
-
-
-
 
 # os.environ['MUJOCO_GL'] = 'egl'
 np.set_printoptions(precision=8)
@@ -45,26 +34,25 @@ np.set_printoptions(precision=8)
 paused = True
 cmd_lin_y = 0.0
 cmd_lin_x = 0.0
-cmd_yaw = 0.0
 cmd_ang = 0.0
 trigger_delta = False
 trigger_delta_hand = False
 
 def env_key_callback(keycode):
   print("chr(keycode): ", (keycode))
-  global cmd_lin_y, cmd_lin_x, cmd_yaw, cmd_ang, paused, trigger_delta, trigger_delta_hand, delta_xyz, delta_xyz_hand
+  global cmd_lin_y, cmd_lin_x, cmd_ang, paused, trigger_delta, trigger_delta_hand, delta_xyz, delta_xyz_hand
   if keycode == 265: # AKA: up
-    cmd_lin_x += 1
-    print("up %f" % cmd_lin_x)
+    cmd_lin_y += 1
+    print("up %f" % cmd_lin_y)
   if keycode == 264: # AKA: down
-    cmd_lin_x -= 1
-    print("down %f" % cmd_lin_x)
+    cmd_lin_y -= 1
+    print("down %f" % cmd_lin_y)
   if keycode == 263: # AKA: left
-    cmd_yaw += 0.5
-    print("left: %f" % cmd_yaw)
+    cmd_lin_x -= 1
+    print("left: %f" % cmd_lin_x)
   if keycode == 262: # AKA: right
-    cmd_yaw -= 0.5
-    print("right %f" % cmd_yaw) 
+    cmd_lin_x += 1
+    print("right %f" % cmd_lin_x) 
   if keycode == 52: # AKA: 4
     cmd_ang -= 0.2
     print("turn left %f" % cmd_ang)
@@ -127,7 +115,7 @@ class DcmmVecEnv(gym.Env):
         device='cuda:0',
         print_obs=False,
         print_reward=False,
-        print_ctrl=True,
+        print_ctrl=False,
         print_info=False,
         print_contacts=False,
     ):
@@ -163,11 +151,11 @@ class DcmmVecEnv(gym.Env):
         self.Dcmm.model = mujoco.MjModel.from_xml_string(self.Dcmm.model_xml_string)
         self.Dcmm.data = mujoco.MjData(self.Dcmm.model)
         # Get the geom id of the hand, the floor and the object
-        self.hand_start_id = mujoco.mj_name2id(self.Dcmm.model, mujoco.mjtObj.mjOBJ_GEOM, 'piper_link7') - 1
-        # print("self.hand_start_id: ", self.hand_start_id)
+        self.hand_start_id = mujoco.mj_name2id(self.Dcmm.model, mujoco.mjtObj.mjOBJ_GEOM, 'mcp_joint') - 1
+        print("self.hand_start_id: ", self.hand_start_id)
         self.floor_id = mujoco.mj_name2id(self.Dcmm.model, mujoco.mjtObj.mjOBJ_GEOM, 'floor')
         self.object_id = mujoco.mj_name2id(self.Dcmm.model, mujoco.mjtObj.mjOBJ_GEOM, self.object_name)
-        self.base_id = mujoco.mj_name2id(self.Dcmm.model, mujoco.mjtObj.mjOBJ_GEOM, 'base_link')
+        self.base_id = mujoco.mj_name2id(self.Dcmm.model, mujoco.mjtObj.mjOBJ_GEOM, 'ranger_base')
 
         # Set the camera configuration
         self.Dcmm.model.vis.global_.offwidth = DcmmCfg.cam_config["width"]
@@ -188,7 +176,7 @@ class DcmmVecEnv(gym.Env):
         else: self.Dcmm.viewer = None
 
         # Observations are dictionaries with the agent's and the object's state. (dim = 44)
-        # hand_joint_indices = np.where(DcmmCfg.hand_mask == 1)[0] + 14
+        hand_joint_indices = np.where(DcmmCfg.hand_mask == 1)[0] + 15
         self.observation_space = spaces.Dict(
             {
                 "base": spaces.Dict({
@@ -198,12 +186,12 @@ class DcmmVecEnv(gym.Env):
                     "ee_pos3d": spaces.Box(-10, 10, shape=(3,), dtype=np.float32),
                     "ee_quat": spaces.Box(-1, 1, shape=(4,), dtype=np.float32),
                     "ee_v_lin_3d": spaces.Box(-1, 1, shape=(3,), dtype=np.float32),
-                    "joint_pos": spaces.Box(low = np.array([self.Dcmm.model.jnt_range[i][0] for i in range(5, 11)]),
-                                            high = np.array([self.Dcmm.model.jnt_range[i][1] for i in range(5, 11)]),
+                    "joint_pos": spaces.Box(low = np.array([self.Dcmm.model.jnt_range[i][0] for i in range(9, 15)]),
+                                            high = np.array([self.Dcmm.model.jnt_range[i][1] for i in range(9, 15)]),
                                             dtype=np.float32),
                 }),
-                "hand": spaces.Box(low = np.array([self.Dcmm.model.jnt_range[i][0] for i in range(11,13)]),
-                                   high = np.array([self.Dcmm.model.jnt_range[i][1] for i in range(11,13)]),
+                "hand": spaces.Box(low = np.array([self.Dcmm.model.jnt_range[i][0] for i in hand_joint_indices]),
+                                   high = np.array([self.Dcmm.model.jnt_range[i][1] for i in hand_joint_indices]),
                                    dtype=np.float32),
                 "object": spaces.Dict({
                     "pos3d": spaces.Box(-10, 10, shape=(3,), dtype=np.float32),
@@ -220,8 +208,8 @@ class DcmmVecEnv(gym.Env):
         arm_low = -0.025*np.ones(4)
         arm_high = 0.025*np.ones(4)
         # Define the limit for the hand action
-        hand_low = np.array([self.Dcmm.model.jnt_range[i][0] for i in range(11,13)])
-        hand_high = np.array([self.Dcmm.model.jnt_range[i][1] for i in range(11,13)])
+        hand_low = np.array([self.Dcmm.model.jnt_range[i][0] for i in hand_joint_indices])
+        hand_high = np.array([self.Dcmm.model.jnt_range[i][1] for i in hand_joint_indices])
 
         # Get initial ee_pos3d
         self.init_pos = True
@@ -248,14 +236,13 @@ class DcmmVecEnv(gym.Env):
             "hand": DynamicDelayBuffer(maxlen=2),
         }
         # Combine the limits of the action space
-        self.actions_low = np.concatenate([base_low, arm_low])
-        self.actions_high = np.concatenate([base_high, arm_high])
+        self.actions_low = np.concatenate([base_low, arm_low, hand_low])
+        self.actions_high = np.concatenate([base_high, arm_high, hand_high])
 
         self.obs_dim = get_total_dimension(self.observation_space)
         self.act_dim = get_total_dimension(self.action_space)
-        #TODO:: 这里还没改 ss 2025/05/01
-        self.obs_t_dim = self.obs_dim - 2 - 6  # dim = 18, 12 for the hand, 6 for the arm joint positions
-        self.act_t_dim = self.act_dim - 2 # dim = 6, 12 for the hand
+        self.obs_t_dim = self.obs_dim - 12 - 6  # dim = 18, 12 for the hand, 6 for the arm joint positions
+        self.act_t_dim = self.act_dim - 12 # dim = 6, 12 for the hand
         self.obs_c_dim = self.obs_dim - 6  # dim = 30, 6 for the arm joint positions
         self.act_c_dim = self.act_dim # dim = 18,
         print("##### Tracking Task \n obs_dim: {}, act_dim: {}".format(self.obs_t_dim, self.act_t_dim))
@@ -280,9 +267,9 @@ class DcmmVecEnv(gym.Env):
         self.vel_history = deque(maxlen=4)
 
         self.info = {
-            "ee_distance": np.linalg.norm(self.Dcmm.data.body("piper_link6").xpos - 
+            "ee_distance": np.linalg.norm(self.Dcmm.data.body("link6").xpos - 
                                           self.Dcmm.data.body(self.Dcmm.object_name).xpos[0:3]),
-            "base_distance": np.linalg.norm(self.Dcmm.data.body("piper_link1").xpos[0:2] - 
+            "base_distance": np.linalg.norm(self.Dcmm.data.body("arm_base").xpos[0:2] - 
                                             self.Dcmm.data.body(self.Dcmm.object_name).xpos[0:2]),
             "env_time": self.Dcmm.data.time - self.start_time,
             "imgs": {}
@@ -323,7 +310,7 @@ class DcmmVecEnv(gym.Env):
             self.stage = stage
         else:
             raise ValueError("Invalid stage: {}".format(stage))
-    # TODO:: 获得手接触的部分，这个函数先可以不启用？ ss 2025/05/01
+
     def _get_contacts(self):
         # Contact information of the hand
         geom_ids = self.Dcmm.data.contact.geom
@@ -368,7 +355,7 @@ class DcmmVecEnv(gym.Env):
         }
 
     def _get_base_vel(self):
-        base_yaw = quat2theta(self.Dcmm.data.body("base_link").xquat[0], self.Dcmm.data.body("base_link").xquat[3]) #相对于世界系
+        base_yaw = quat2theta(self.Dcmm.data.body("base_link").xquat[0], self.Dcmm.data.body("base_link").xquat[3])
         global_base_vel = self.Dcmm.data.qvel[0:2]
         base_vel_x = math.cos(base_yaw) * global_base_vel[0] + math.sin(base_yaw) * global_base_vel[1]
         base_vel_y = -math.sin(base_yaw) * global_base_vel[0] + math.cos(base_yaw) * global_base_vel[1]
@@ -377,22 +364,22 @@ class DcmmVecEnv(gym.Env):
     def _get_relative_ee_pos3d(self):
         # Caclulate the ee_pos3d w.r.t. the base_link
         base_yaw = quat2theta(self.Dcmm.data.body("base_link").xquat[0], self.Dcmm.data.body("base_link").xquat[3])
-        x,y = relative_position(self.Dcmm.data.body("piper_link1").xpos[0:2], 
-                                self.Dcmm.data.body("piper_link6").xpos[0:2], 
+        x,y = relative_position(self.Dcmm.data.body("arm_base").xpos[0:2], 
+                                self.Dcmm.data.body("link6").xpos[0:2], 
                                 base_yaw)
         return np.array([x, y, 
-                         self.Dcmm.data.body("piper_link6").xpos[2]-self.Dcmm.data.body("piper_link1").xpos[2]])
+                         self.Dcmm.data.body("link6").xpos[2]-self.Dcmm.data.body("arm_base").xpos[2]])
 
     def _get_relative_ee_quat(self):
         # Caclulate the ee_pos3d w.r.t. the base_link
-        quat = relative_quaternion(self.Dcmm.data.body("base_link").xquat, self.Dcmm.data.body("piper_link6").xquat)
+        quat = relative_quaternion(self.Dcmm.data.body("base_link").xquat, self.Dcmm.data.body("link6").xquat)
         return np.array(quat)
 
     def _get_relative_ee_v_lin_3d(self):
         # Caclulate the ee_v_lin3d w.r.t. the base_link
         # In simulation, we can directly get the velocity of the end-effector
-        base_vel = self.Dcmm.data.body("piper_link1").cvel[3:6]
-        global_ee_v_lin = self.Dcmm.data.body("piper_link6").cvel[3:6]
+        base_vel = self.Dcmm.data.body("arm_base").cvel[3:6]
+        global_ee_v_lin = self.Dcmm.data.body("link6").cvel[3:6]
         base_yaw = quat2theta(self.Dcmm.data.body("base_link").xquat[0], self.Dcmm.data.body("base_link").xquat[3])
         ee_v_lin_x = math.cos(base_yaw) * (global_ee_v_lin[0]-base_vel[0]) + math.sin(base_yaw) * (global_ee_v_lin[1]-base_vel[1])
         ee_v_lin_y = -math.sin(base_yaw) * (global_ee_v_lin[0]-base_vel[0]) + math.cos(base_yaw) * (global_ee_v_lin[1]-base_vel[1])
@@ -402,15 +389,15 @@ class DcmmVecEnv(gym.Env):
     def _get_relative_object_pos3d(self):
         # Caclulate the object_pos3d w.r.t. the base_link
         base_yaw = quat2theta(self.Dcmm.data.body("base_link").xquat[0], self.Dcmm.data.body("base_link").xquat[3])
-        x,y = relative_position(self.Dcmm.data.body("piper_link1").xpos[0:2], 
+        x,y = relative_position(self.Dcmm.data.body("arm_base").xpos[0:2], 
                                 self.Dcmm.data.body(self.Dcmm.object_name).xpos[0:2], 
                                 base_yaw)
         return np.array([x, y, 
-                         self.Dcmm.data.body(self.Dcmm.object_name).xpos[2]-self.Dcmm.data.body("piper_link1").xpos[2]])
+                         self.Dcmm.data.body(self.Dcmm.object_name).xpos[2]-self.Dcmm.data.body("arm_base").xpos[2]])
 
     def _get_relative_object_v_lin_3d(self):
         # Caclulate the object_v_lin3d w.r.t. the base_link
-        base_vel = self.Dcmm.data.body("piper_link1").cvel[3:6]
+        base_vel = self.Dcmm.data.body("arm_base").cvel[3:6]
         global_object_v_lin = self.Dcmm.data.joint(self.Dcmm.object_name).qvel[0:3]
         base_yaw = quat2theta(self.Dcmm.data.body("base_link").xquat[0], self.Dcmm.data.body("base_link").xquat[3])
         object_v_lin_x = math.cos(base_yaw) * (global_object_v_lin[0]-base_vel[0]) + math.sin(base_yaw) * (global_object_v_lin[1]-base_vel[1])
@@ -435,7 +422,7 @@ class DcmmVecEnv(gym.Env):
                 'ee_v_lin_3d': (ee_pos3d - self.prev_ee_pos3d)*self.fps + np.random.normal(0, self.k_obs_arm, 3),
                 "joint_pos": np.array(self.Dcmm.data.qpos[15:21]) + np.random.normal(0, self.k_obs_arm, 6),
             },
-            "hand": self._get_hand_obs() + np.random.normal(0, self.k_obs_hand, 2),
+            "hand": self._get_hand_obs() + np.random.normal(0, self.k_obs_hand, 12),
             "object": {
                 "pos3d": obj_pos3d + np.random.normal(0, self.k_obs_object, 3),
                 # "v_lin_3d": self._get_relative_object_v_lin_3d() + np.random.normal(0, self.k_obs_object, 3),
@@ -451,28 +438,26 @@ class DcmmVecEnv(gym.Env):
 
     def _get_hand_obs(self):
         # print("full hand: ", self.Dcmm.data.qpos[21:37])
-        hand_obs = np.zeros(2)
-        hand_obs = self.Dcmm.data.qpos[17] # 2
-        hand_obs = self.Dcmm.data.qpos[18]
+        hand_obs = np.zeros(12)
         # Thumb
-        # hand_obs[9] = self.Dcmm.data.qpos[21+13]
-        # hand_obs[10] = self.Dcmm.data.qpos[21+14]
-        # hand_obs[11] = self.Dcmm.data.qpos[21+15]
-        # # Other Three Fingers
-        # hand_obs[0] = self.Dcmm.data.qpos[21]
-        # hand_obs[1:3] = self.Dcmm.data.qpos[(21+2):(21+4)]
-        # hand_obs[3] = self.Dcmm.data.qpos[21+4]
-        # hand_obs[4:6] = self.Dcmm.data.qpos[(21+6):(21+8)]
-        # hand_obs[6] = self.Dcmm.data.qpos[21+8]
-        # hand_obs[7:9] = self.Dcmm.data.qpos[(21+10):(21+12)]
+        hand_obs[9] = self.Dcmm.data.qpos[21+13]
+        hand_obs[10] = self.Dcmm.data.qpos[21+14]
+        hand_obs[11] = self.Dcmm.data.qpos[21+15]
+        # Other Three Fingers
+        hand_obs[0] = self.Dcmm.data.qpos[21]
+        hand_obs[1:3] = self.Dcmm.data.qpos[(21+2):(21+4)]
+        hand_obs[3] = self.Dcmm.data.qpos[21+4]
+        hand_obs[4:6] = self.Dcmm.data.qpos[(21+6):(21+8)]
+        hand_obs[6] = self.Dcmm.data.qpos[21+8]
+        hand_obs[7:9] = self.Dcmm.data.qpos[(21+10):(21+12)]
         return hand_obs
     
     def _get_info(self):
         # Time of the Mujoco environment
         env_time = self.Dcmm.data.time - self.start_time
-        ee_distance = np.linalg.norm(self.Dcmm.data.body("piper_link6").xpos - 
+        ee_distance = np.linalg.norm(self.Dcmm.data.body("link6").xpos - 
                                     self.Dcmm.data.body(self.Dcmm.object_name).xpos[0:3])
-        base_distance = np.linalg.norm(self.Dcmm.data.body("piper_link1").xpos[0:2] -
+        base_distance = np.linalg.norm(self.Dcmm.data.body("arm_base").xpos[0:2] -
                                         self.Dcmm.data.body(self.Dcmm.object_name).xpos[0:2])
         # print("base_distance: ", base_distance)
         if self.print_info: 
@@ -490,29 +475,18 @@ class DcmmVecEnv(gym.Env):
         self.action_buffer["base"].append(copy.deepcopy(self.Dcmm.target_base_vel[:]))
         self.action_buffer["arm"].append(copy.deepcopy(self.Dcmm.target_arm_qpos[:]))
         self.action_buffer["hand"].append(copy.deepcopy(self.Dcmm.target_hand_qpos[:]))
-        print("target base vel", self.Dcmm.target_base_vel[:])
-        print("target arm qpos", self.Dcmm.target_arm_qpos[:])
-        print("target hand qpos", self.Dcmm.target_hand_qpos[:])
 
     def _get_ctrl(self):
-        # Map the action to the control
-        # mujoco.mj_forward(self.Dcmm.model, self.Dcmm.data)
-        # mujoco.mj_forward(self.Dcmm.model_arm, self.Dcmm.data_arm) 
-        mv_drive = self.Dcmm.move_base_vel(self.action_buffer["base"][0]) #  
-        print("action_buffer[base]", self.action_buffer["base"][0])
-        mv_arm = self.Dcmm.arm_pid.update(self.action_buffer["arm"][0], self.Dcmm.data.qpos[11:17], self.Dcmm.data.time) # 6
-        print("action_buffer[arm]", self.action_buffer["arm"][0])
-        print("arm current qpos", self.Dcmm.data.qpos[11:17])
-        mv_hand = self.Dcmm.hand_pid.update(self.action_buffer["hand"][0], self.Dcmm.data.qpos[17:19], self.Dcmm.data.time)
-        # print("############mv_hand", mv_hand)
-        print("hand current qpos", self.Dcmm.data.qpos[17:19])
-        # mv_hand = self.Dcmm.hand_pid.update(self.action_buffer["hand"][0], self.Dcmm.data.qpos[21:37], self.Dcmm.data.time) # 16
-        ctrl = np.concatenate([mv_drive, mv_arm, mv_hand], axis=0) #mv_hand mv_steer
+        # Map the action to the control 
+        mv_steer, mv_drive = self.Dcmm.move_base_vel(self.action_buffer["base"][0]) # 8
+        mv_arm = self.Dcmm.arm_pid.update(self.action_buffer["arm"][0], self.Dcmm.data.qpos[15:21], self.Dcmm.data.time) # 6
+        mv_hand = self.Dcmm.hand_pid.update(self.action_buffer["hand"][0], self.Dcmm.data.qpos[21:37], self.Dcmm.data.time) # 16
+        ctrl = np.concatenate([mv_steer, mv_drive, mv_arm, mv_hand], axis=0)
         # Add Action Noise (Scale with self.k_act)
-        # ctrl *= np.random.normal(1, self.k_act, 12)
+        ctrl *= np.random.normal(1, self.k_act, 30)
         if self.print_ctrl:
             print("##### ctrl:")
-            print("mv_drive: {}, \nmv_arm: {}, \nmv_hand: {}\n".format(mv_drive, mv_arm, mv_hand))
+            print("mv_steer: {}, \nmv_drive: {}, \nmv_arm: {}, \nmv_hand: {}\n".format(mv_steer, mv_drive, mv_arm, mv_hand))
         return ctrl
 
     def _reset_object(self):
@@ -590,7 +564,7 @@ class DcmmVecEnv(gym.Env):
         self.k_hand = np.random.uniform(0, 1, size=1)
         # Reset the PID Controller
         self.Dcmm.arm_pid.reset(self.k_arm*(DcmmCfg.k_arm[1]-DcmmCfg.k_arm[0])+DcmmCfg.k_arm[0])
-        # self.Dcmm.steer_pid.reset(self.k_steer*(DcmmCfg.k_steer[1]-DcmmCfg.k_steer[0])+DcmmCfg.k_steer[0])
+        self.Dcmm.steer_pid.reset(self.k_steer*(DcmmCfg.k_steer[1]-DcmmCfg.k_steer[0])+DcmmCfg.k_steer[0])
         self.Dcmm.drive_pid.reset(self.k_drive*(DcmmCfg.k_drive[1]-DcmmCfg.k_drive[0])+DcmmCfg.k_drive[0])
         self.Dcmm.hand_pid.reset(self.k_hand[0]*(DcmmCfg.k_hand[1]-DcmmCfg.k_hand[0])+DcmmCfg.k_hand[0])
     
@@ -614,8 +588,8 @@ class DcmmVecEnv(gym.Env):
             self.Dcmm.data_arm.act[:] = None
         self.Dcmm.data.ctrl = np.zeros(self.Dcmm.model.nu)
         self.Dcmm.data_arm.ctrl = np.zeros(self.Dcmm.model_arm.nu)
-        self.Dcmm.data.qpos[11:17] = DcmmCfg.arm_joints[:]
-        self.Dcmm.data.qpos[17:19] = DcmmCfg.hand_joints[:]
+        self.Dcmm.data.qpos[15:21] = DcmmCfg.arm_joints[:]
+        self.Dcmm.data.qpos[21:37] = DcmmCfg.hand_joints[:]
         self.Dcmm.data_arm.qpos[0:6] = DcmmCfg.arm_joints[:]
         self.Dcmm.data.body("object").xpos[0:3] = np.array([2, 2, 1])
         # Random 3D position TODO: Adjust to the fov
@@ -638,7 +612,6 @@ class DcmmVecEnv(gym.Env):
     def reset(self):
         # Reset the basic simulation
         self._reset_simulation()
-
         self.init_ctrl = True
         self.init_pos = True
         self.vel_init = False
@@ -661,9 +634,9 @@ class DcmmVecEnv(gym.Env):
         self.reward_stability = 0
 
         self.info = {
-            "ee_distance": np.linalg.norm(self.Dcmm.data.body("piper_link6").xpos - 
+            "ee_distance": np.linalg.norm(self.Dcmm.data.body("link6").xpos - 
                                        self.Dcmm.data.body(self.Dcmm.object_name).xpos[0:3]),
-            "base_distance": np.linalg.norm(self.Dcmm.data.body("piper_link1").xpos[0:2] -
+            "base_distance": np.linalg.norm(self.Dcmm.data.body("arm_base").xpos[0:2] -
                                              self.Dcmm.data.body(self.Dcmm.object_name).xpos[0:2]),
             "evn_time": self.Dcmm.data.time - self.start_time,
         }
@@ -736,7 +709,6 @@ class DcmmVecEnv(gym.Env):
                 ## Ctrl Penalty
                 # Compute the norm of hand joint movement through the current actions in the tracking stage
                 reward_ctrl = - self.norm_ctrl(ctrl, {"hand"})
-                # reward_ctrl = 0
                 ## Object Orientation Reward
                 # Compute the dot product of the velocity vector of the object and the z axis of the end_effector
                 rotation_matrix = quaternion_to_rotation_matrix(obs["arm"]["ee_quat"])
@@ -813,11 +785,10 @@ class DcmmVecEnv(gym.Env):
         if result_QP[1]:
             self.arm_limit = True
             self.Dcmm.target_arm_qpos[:] = result_QP[0]
-            print("result_QP: ", result_QP[0])
         else:
-            print("IK Failed!!!")
+            # print("IK Failed!!!")
             self.arm_limit = False
-        # self.Dcmm.action_hand2qpos(action_dict["hand"])
+        self.Dcmm.action_hand2qpos(action_dict["hand"])
         # Add Target Action to the Buffer
         self.update_target_ctrl()
         # Reset the Criteria for Successfully Touch
@@ -997,32 +968,29 @@ class DcmmVecEnv(gym.Env):
         if self.Dcmm.viewer != None: self.Dcmm.viewer.close()
 
     def run_test(self):
-        global cmd_lin_x, cmd_lin_y, cmd_yaw, trigger_delta, trigger_delta_hand, delta_xyz, delta_xyz_hand
+        global cmd_lin_x, cmd_lin_y, trigger_delta, trigger_delta_hand, delta_xyz, delta_xyz_hand
         self.reset()
-        #TODO:: 这里的action的维度需要后续调整 ss
-        action = np.zeros(8)
+        action = np.zeros(18)
         while True:
             # Note: action's dim = 18, which includes 2 for the base, 4 for the arm, and 12 for the hand
             # print("##### stage: ", self.stage)
             # Keyboard control
-            action[0:2] = np.array([cmd_lin_x, cmd_yaw])
-            print("cmd_lin_x: ", cmd_lin_x)
-            print("cmd_yaw: ", cmd_yaw)
+            action[0:2] = np.array([cmd_lin_x, cmd_lin_y])
             if trigger_delta:
                 print("delta_xyz: ", delta_xyz)
-                action[2:5] = np.array([delta_xyz, delta_xyz, delta_xyz])
+                action[2:6] = np.array([delta_xyz, delta_xyz, delta_xyz, delta_xyz])
                 trigger_delta = False
             else:
-                action[2:5] = np.zeros(3)
-            # if trigger_delta_hand:
-            #     print("delta_xyz_hand: ", delta_xyz_hand)
-            #     action[6:18] = np.ones(12)*delta_xyz_hand
-            #     trigger_delta_hand = False
-            # else:
-            #     action[6:18] = np.zeros(12)
+                action[2:6] = np.zeros(4)
+            if trigger_delta_hand:
+                print("delta_xyz_hand: ", delta_xyz_hand)
+                action[6:18] = np.ones(12)*delta_xyz_hand
+                trigger_delta_hand = False
+            else:
+                action[6:18] = np.zeros(12)
             base_tensor = action[:2]
-            arm_tensor = action[2:5]
-            hand_tensor = action[6:8]
+            arm_tensor = action[2:6]
+            hand_tensor = action[6:18]
             actions_dict = {
                 'arm': arm_tensor,
                 'base': base_tensor,
@@ -1040,9 +1008,9 @@ if __name__ == "__main__":
     print("args: ", args)
     env = DcmmVecEnv(task='Catching', object_name='object', render_per_step=False, 
                     print_reward=False, print_info=False, 
-                    print_contacts=False, print_ctrl=True, 
+                    print_contacts=False, print_ctrl=False, 
                     print_obs=False, camera_name = ["top"],
                     render_mode="rgb_array", imshow_cam=args.imshow_cam, 
-                    viewer = True, object_eval=True,
+                    viewer = args.viewer, object_eval=False,
                     env_time = 2.5, steps_per_policy=20)
     env.run_test()

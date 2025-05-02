@@ -229,7 +229,7 @@ class QP(IK):
         # Do not use mj_kinematics, it does more than foward the position kinematics!
         # mujoco.mj_kinematics(model, data)
         mujoco.mj_fwdPosition(model, data)
-        Te = calculate_arm_Te(data.body("link6").xpos, data.body("link6").xquat)
+        Te = calculate_arm_Te(data.body("piper_link6").xpos, data.body("piper_link6").xquat)
         # print("Tep: ", Tep)
         # print("Te: ", Te)
         # exit(1)
@@ -243,7 +243,7 @@ class QP(IK):
         # Calculate the Jacobian
         jacp = np.zeros((3, model.nv))
         jacr = np.zeros((3, model.nv))
-        mujoco.mj_jacBodyCom(model, data, jacp, jacr, model.body("link6").id)
+        mujoco.mj_jacBodyCom(model, data, jacp, jacr, model.body("piper_link6").id)
         J = np.concatenate((jacp, jacr), axis=0)
         # print("J: \n", J)
         # Quadratic component of objective function

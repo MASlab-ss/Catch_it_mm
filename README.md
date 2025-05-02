@@ -54,18 +54,15 @@ Under `gym_dcmm/envs/`, run:
 python3 DcmmVecEnv.py --viewer
 ```
 
-Keyboard control:
+Keyboard control for scout piper:
 
-1. `↑` (up) : increase the y linear velocity (base frame) by 1 m/s;
-2. `↓` (down) : decrease the y linear velocity (base frame) by 1 m/s;
-3. `←` (left) : increase x linear velocity (base frame) by 1 m/s;
-4. `→` (right) : decrease x linear velocity (base frame) by 1 m/s;
-5. `4` (turn left) : decrease counter-clockwise angular velocity by 0.2 rad/s;
-6. `6` (turn right) : increase counter-clockwise angular velocity by 0.2 rad/s;
-7. `+`: increase the position & roll of the arm end effector by (0.1, 0.1, 0.1, 0.1) m;
-8. `-`: decrease the position & roll of the arm end effector by (0.1, 0.1, 0.1, 0.1) m;
-9. `7`: increase the joint position of the hand by (0.2, 0.2, 0.2, 0.2) rad;
-10. `9`: decrease the joint position of the hand by (0.2, 0.2, 0.2, 0.2) rad;
+1. `↑` (up) : increase the x linear velocity (base frame) ;
+2. `↓` (down) : decrease the x linear velocity (base frame) ;
+3. `←` (left) : increase yaw velocity (base frame) ;
+4. `→` (right) : decrease yaw velocity (base frame) ;
+5. `+`: increase the position of the arm end effector by (0.1, 0.1, 0.1) m;
+6. `-`: decrease the position of the arm end effector by (0.1, 0.1, 0.1) m;
+
 
 **Note**: DO NOT change the speed of the mobile base too dramatically, or it might tip over.
 
