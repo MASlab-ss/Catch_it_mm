@@ -18,7 +18,8 @@ from gym_dcmm.algs.ppo_dcmm.ppo_dcmm_catch_two_stage import PPO_Catch_TwoStage
 from gym_dcmm.algs.ppo_dcmm.ppo_dcmm_track import PPO_Track
 from gym_dcmm.utils.util import omegaconf_to_dict
 
-# os.environ['MUJOCO_GL'] = 'egl'
+# os.environ["MUJOCO_GL"] = "glfw"
+os.environ["MUJOCO_GL"] = "egl"
 OmegaConf.register_new_resolver(
     "resolve_default", lambda default, arg: default if arg == "" else arg
 )
@@ -67,7 +68,8 @@ def main(config: DictConfig):
         env_time=2.5,
         steps_per_policy=20,
     )
-
+    print(env.action_space, env.single_action_space)
+    print(env.observation_space, env.single_action_space)
     output_dif = os.path.join("outputs", config.output_name)
     # Get the local date and time
     local_tz = pytz.timezone("Asia/Shanghai")

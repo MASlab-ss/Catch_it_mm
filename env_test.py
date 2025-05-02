@@ -1,8 +1,8 @@
 import os
 
 # 必须在导入任何 Mujoco 相关模块前设置
-os.environ['MUJOCO_GL'] = 'glfw'
-# os.environ["MUJOCO_GL"] = "egl"
+# os.environ['MUJOCO_GL'] = 'glfw'
+os.environ["MUJOCO_GL"] = "egl"
 
 import sys
 
@@ -34,7 +34,7 @@ if __name__ == "__main__":
         print_reward=False,
         print_info=False,
         print_contacts=False,
-        print_ctrl=True,
+        print_ctrl=False,
         print_obs=False,
         camera_name=["top"],
         render_mode="rgb_array",

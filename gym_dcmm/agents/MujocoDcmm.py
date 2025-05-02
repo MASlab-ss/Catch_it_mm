@@ -275,7 +275,7 @@ class MJ_DCMM(object):
 
     def move_base_vel(self, target_base_vel):
         self.drive_vel = IKBase(target_base_vel[0], 0, target_base_vel[1])
-        print("self_drive_vel ikbase:", self.drive_vel)
+        # print("self_drive_vel ikbase:", self.drive_vel)
         ####################
         ## No bugs so far ##
         ####################
@@ -293,12 +293,12 @@ class MJ_DCMM(object):
                 self.data.joint("rear_right_wheel").qvel[0],
             ]
         )
-        print("current_drive_vel :", current_drive_vel)
+        # print("current_drive_vel :", current_drive_vel)
         # mv_steer = self.steer_pid.update(self.steer_ang, current_steer_pos, self.data.time)
         mv_drive = self.drive_pid.update(
             self.drive_vel, current_drive_vel, self.data.time
         )
-        print("pid mv_drive", mv_drive)
+        # print("pid mv_drive", mv_drive)
         for i in range(4):
             if current_drive_vel[i] > 0 and current_drive_vel[i] < self.drive_vel[i]:
                 mv_drive[i] = np.clip(mv_drive[i], 0, self.drive_ctrlrange[1])

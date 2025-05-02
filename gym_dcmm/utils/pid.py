@@ -2,7 +2,7 @@ import time as time_ss
 
 import numpy as np
 
-DEBUG_PID = True
+DEBUG_PID = False
 
 
 class PID:
@@ -127,8 +127,8 @@ class GripperPID:
         self.t_prev = None
 
     def update(self, u_target, data, t_now):
-        print("hand 1", data[0])
-        print("hand 2", data[1])
+        # print("hand 1", data[0])
+        # print("hand 2", data[1])
         # 当前开合宽度（joint7 向上为正，joint8 向下为负，所以加法为对称距离）
         # q_gap = (data[0] - data[1])  # 实际开合量
         error = u_target - data
@@ -147,12 +147,12 @@ class GripperPID:
 
         # 合成 PID 输出
         force = P + I + D
-        print("error:", error)
-        print("P: ", P)
-        print("I: ", I)
-        print("D: ", D)
+        # print("error:", error)
+        # print("P: ", P)
+        # print("I: ", I)
+        # print("D: ", D)
         force = np.clip(force * self.gear, self.llim, self.ulim)
-        print("hand kp", self.Kp)
+        # print("hand kp", self.Kp)
         # 应用对称控制力
         # data.ctrl[self.aid7] = force
         # data.ctrl[self.aid8] = force

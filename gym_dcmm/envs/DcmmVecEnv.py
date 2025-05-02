@@ -261,8 +261,8 @@ class DcmmVecEnv(gym.Env):
             }
         )
         # Define the limit for the mobile base action
-        base_low = np.array([-4, -4])
-        base_high = np.array([4, 4])
+        base_low = np.array([-4, -4, -4])
+        base_high = np.array([4, 4, 4])
         # Define the limit for the arm action
         arm_low = -0.025 * np.ones(4)
         arm_high = 0.025 * np.ones(4)
@@ -282,7 +282,7 @@ class DcmmVecEnv(gym.Env):
         # Actions (dim = 20)
         self.action_space = spaces.Dict(
             {
-                "base": spaces.Box(base_low, base_high, shape=(2,), dtype=np.float32),
+                "base": spaces.Box(base_low, base_high, shape=(3,), dtype=np.float32),
                 "arm": spaces.Box(arm_low, arm_high, shape=(4,), dtype=np.float32),
                 "hand": spaces.Box(low=hand_low, high=hand_high, dtype=np.float32),
             }
@@ -298,13 +298,11 @@ class DcmmVecEnv(gym.Env):
 
         self.obs_dim = get_total_dimension(self.observation_space)
         self.act_dim = get_total_dimension(self.action_space)
-        # TODO:: 这里还没改 ss 2025/05/01
-        self.obs_t_dim = (
-            self.obs_dim - 2 - 6
-        )  # dim = 18, 12 for the hand, 6 for the arm joint positions
-        self.act_t_dim = self.act_dim - 2  # dim = 6, 12 for the hand
-        self.obs_c_dim = self.obs_dim - 6  # dim = 30, 6 for the arm joint positions
-        self.act_c_dim = self.act_dim  # dim = 18,
+        # TODO tacking mode without hand?
+        self.obs_t_dim = self.obs_dim
+        self.act_t_dim = self.act_dim
+        self.obs_c_dim = self.obs_dim
+        self.act_c_dim = self.act_dim
         print(
             "##### Tracking Task \n obs_dim: {}, act_dim: {}".format(
                 self.obs_t_dim, self.act_t_dim
@@ -574,8 +572,8 @@ class DcmmVecEnv(gym.Env):
     def _get_hand_obs(self):
         # print("full hand: ", self.Dcmm.data.qpos[21:37])
         hand_obs = np.zeros(2)
-        hand_obs = self.Dcmm.data.qpos[17]  # 2
-        hand_obs = self.Dcmm.data.qpos[18]
+        hand_obs[0] = self.Dcmm.data.qpos[17]  # 2
+        hand_obs[1] = self.Dcmm.data.qpos[18]
         # Thumb
         # hand_obs[9] = self.Dcmm.data.qpos[21+13]
         # hand_obs[10] = self.Dcmm.data.qpos[21+14]
@@ -616,31 +614,36 @@ class DcmmVecEnv(gym.Env):
         self.action_buffer["base"].append(copy.deepcopy(self.Dcmm.target_base_vel[:]))
         self.action_buffer["arm"].append(copy.deepcopy(self.Dcmm.target_arm_qpos[:]))
         self.action_buffer["hand"].append(copy.deepcopy(self.Dcmm.target_hand_qpos[:]))
-        print("target base vel", self.Dcmm.target_base_vel[:])
-        print("target arm qpos", self.Dcmm.target_arm_qpos[:])
-        print("target hand qpos", self.Dcmm.target_hand_qpos[:])
+        # print("target base vel", self.Dcmm.target_base_vel[:])
+        # print("target arm qpos", self.Dcmm.target_arm_qpos[:])
+        # print("target hand qpos", self.Dcmm.target_hand_qpos[:])
 
     def _get_ctrl(self):
         # Map the action to the control
         # mujoco.mj_forward(self.Dcmm.model, self.Dcmm.data)
         # mujoco.mj_forward(self.Dcmm.model_arm, self.Dcmm.data_arm)
         mv_drive = self.Dcmm.move_base_vel(self.action_buffer["base"][0])  #
-        print("action_buffer[base]", self.action_buffer["base"][0])
+        # print("action_buffer[base]", self.action_buffer["base"][0])
         mv_arm = self.Dcmm.arm_pid.update(
             self.action_buffer["arm"][0],
             self.Dcmm.data.qpos[11:17],
             self.Dcmm.data.time,
         )  # 6
-        print("action_buffer[arm]", self.action_buffer["arm"][0])
-        print("arm current qpos", self.Dcmm.data.qpos[11:17])
+        # print("action_buffer[arm]", self.action_buffer["arm"][0])
+        # print("arm current qpos", self.Dcmm.data.qpos[11:17])
         mv_hand = self.Dcmm.hand_pid.update(
             self.action_buffer["hand"][0],
             self.Dcmm.data.qpos[17:19],
             self.Dcmm.data.time,
         )
+        # print("action_buffer[hand]", self.action_buffer["hand"][0])
         # print("############mv_hand", mv_hand)
-        print("hand current qpos", self.Dcmm.data.qpos[17:19])
-        # mv_hand = self.Dcmm.hand_pid.update(self.action_buffer["hand"][0], self.Dcmm.data.qpos[21:37], self.Dcmm.data.time) # 16
+        # print("hand current qpos", self.Dcmm.data.qpos[17:19])
+        # mv_hand = self.Dcmm.hand_pid.update(
+        #     self.action_buffer["hand"][0],
+        #     self.Dcmm.data.qpos[21:37],
+        #     self.Dcmm.data.time,
+        # )  # 16
         ctrl = np.concatenate([mv_drive, mv_arm, mv_hand], axis=0)  # mv_hand mv_steer
         # Add Action Noise (Scale with self.k_act)
         # ctrl *= np.random.normal(1, self.k_act, 12)
@@ -811,7 +814,6 @@ class DcmmVecEnv(gym.Env):
     def reset(self):
         # Reset the basic simulation
         self._reset_simulation()
-
         self.init_ctrl = True
         self.init_pos = True
         self.vel_init = False
@@ -1062,7 +1064,7 @@ class DcmmVecEnv(gym.Env):
         if result_QP[1]:
             self.arm_limit = True
             self.Dcmm.target_arm_qpos[:] = result_QP[0]
-            print("result_QP: ", result_QP[0])
+            # print("result_QP: ", result_QP[0])
         else:
             print("IK Failed!!!")
             self.arm_limit = False
@@ -1178,6 +1180,7 @@ class DcmmVecEnv(gym.Env):
             # TEST ONLY
             # self.reset()
             pass
+        # print(obs)
         return obs, reward, terminated, truncated, info
 
     def preprocess_depth_with_mask(
@@ -1293,8 +1296,8 @@ class DcmmVecEnv(gym.Env):
             # print("##### stage: ", self.stage)
             # Keyboard control
             action[0:2] = np.array([cmd_lin_x, cmd_yaw])
-            print("cmd_lin_x: ", cmd_lin_x)
-            print("cmd_yaw: ", cmd_yaw)
+            # print("cmd_lin_x: ", cmd_lin_x)
+            # print("cmd_yaw: ", cmd_yaw)
             if trigger_delta:
                 print("delta_xyz: ", delta_xyz)
                 action[2:5] = np.array([delta_xyz, delta_xyz, delta_xyz])
@@ -1312,6 +1315,8 @@ class DcmmVecEnv(gym.Env):
             hand_tensor = action[6:8]
             actions_dict = {"arm": arm_tensor, "base": base_tensor, "hand": hand_tensor}
             # print("self.Dcmm.data.body('link6'):", self.Dcmm.data.body('link6'))
+            # print("")
+            # print("actions_dict", actions_dict)
             observation, reward, terminated, truncated, info = self.step(actions_dict)
 
 

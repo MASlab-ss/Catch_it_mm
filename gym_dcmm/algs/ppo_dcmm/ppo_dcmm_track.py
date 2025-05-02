@@ -398,6 +398,7 @@ class PPO_Track(object):
                     obs["arm"]["ee_pos3d"],
                     obs["arm"]["ee_quat"],
                     obs["arm"]["ee_v_lin_3d"],
+                    obs["arm"]["joint_pos"],
                     obs["object"]["pos3d"],
                     obs["object"]["v_lin_3d"],
                     obs["hand"],
@@ -411,9 +412,10 @@ class PPO_Track(object):
                     obs["arm"]["ee_pos3d"],
                     obs["arm"]["ee_quat"],
                     obs["arm"]["ee_v_lin_3d"],
+                    obs["arm"]["joint_pos"],
                     obs["object"]["pos3d"],
                     obs["object"]["v_lin_3d"],
-                    # obs["hand"],# TODO: TEST
+                    obs["hand"],  # TODO: TEST
                 ),
                 axis=1,
             )
