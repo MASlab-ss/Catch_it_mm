@@ -1,6 +1,7 @@
 import os
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 ## Define the model path
 path = os.path.realpath(__file__)
@@ -18,9 +19,7 @@ WEIGHT_PATH = os.path.join(ASSET_PATH, "weights")
 distance_thresh = 0.25
 
 ## Define the initial joint positions of the arm and the hand
-arm_joints = np.array([
-   0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-])
+arm_joints = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
 hand_joints = np.array([0.01, -0.01])
 
@@ -30,16 +29,13 @@ reward_weights = {
     "r_ee_pos": 10.0,
     "r_precision": 10.0,
     "r_orient": 1.0,
-    "r_touch": {
-        'Tracking': 5,
-        'Catching': 0.1
-    },
+    "r_touch": {"Tracking": 5, "Catching": 0.1},
     "r_constraint": 1.0,
     "r_stability": 20.0,
     "r_ctrl": {
-        'base': 0.2,
-        'arm': 1.0,
-        'hand': 0.2,
+        "base": 0.2,
+        "arm": 1.0,
+        "hand": 0.2,
     },
     "r_collision": -10.0,
 }
@@ -52,37 +48,37 @@ cam_config = {
 }
 
 ## Define the params of the Double Ackerman model.
-RangerMiniV2Params = { 
-  'wheel_radius': 0.1,                  # in meter //ranger-mini 0.1
-  'steer_track': 0.364,                 # in meter (left & right wheel distance) //ranger-mini 0.364
-  'wheel_base': 0.494,                   # in meter (front & rear wheel distance) //ranger-mini 0.494
-  'max_linear_speed': 1.5,              # in m/s
-  'max_angular_speed': 4.8,             # in rad/s
-  'max_speed_cmd': 10.0,                # in rad/s
-  'max_steer_angle_ackermann': 0.6981,  # 40 degree
-  'max_steer_angle_parallel': 1.570,    # 180 degree
-  'max_round_angle': 0.935671,
-  'min_turn_radius': 0.47644,
-  'Half of the wheelbase':0.29153,
-  'scout raduis': 0.16459,
+RangerMiniV2Params = {
+    "wheel_radius": 0.1,  # in meter //ranger-mini 0.1
+    "steer_track": 0.364,  # in meter (left & right wheel distance) //ranger-mini 0.364
+    "wheel_base": 0.494,  # in meter (front & rear wheel distance) //ranger-mini 0.494
+    "max_linear_speed": 1.5,  # in m/s
+    "max_angular_speed": 4.8,  # in rad/s
+    "max_speed_cmd": 10.0,  # in rad/s
+    "max_steer_angle_ackermann": 0.6981,  # 40 degree
+    "max_steer_angle_parallel": 1.570,  # 180 degree
+    "max_round_angle": 0.935671,
+    "min_turn_radius": 0.47644,
+    "Half of the wheelbase": 0.29153,
+    "scout raduis": 0.16459,
 }
 
 ## Define IK
 ik_config = {
-    "solver_type": "QP", 
-    "ps": 0.001, 
-    "λΣ": 12.5, 
-    "ilimit": 100, 
-    "ee_tol": 1e-4
+    "solver_type": "QP",
+    "ps": 0.001,
+    "λΣ": 12.5,
+    "ilimit": 100,
+    "ee_tol": 1e-4,
 }
 
 # Define the Randomization Params
 ## Wheel Drive
 k_drive = np.array([0.75, 1.25])
 ## Wheel Steer
-k_steer = np.array([0.75, 1.25]) 
+k_steer = np.array([0.75, 1.25])
 ## Arm Joints
-k_arm = np.array([0.75, 1.25]) 
+k_arm = np.array([0.75, 1.25])
 ## Hand Joints
 k_hand = np.array([0.75, 1.25])
 ## Object Shape and Size
@@ -107,12 +103,18 @@ k_obs_hand = 0
 k_act = 0
 ## Action Delay
 act_delay = {
-    'base': [1,],
-    'arm': [1,],
-    'hand': [1,],
+    "base": [
+        1,
+    ],
+    "arm": [
+        1,
+    ],
+    "hand": [
+        1,
+    ],
 }
 
-## Define PID params for wheel drive and steering. 
+## Define PID params for wheel drive and steering.
 # driving
 Kp_drive = 10
 Ki_drive = 1e-3
@@ -126,7 +128,7 @@ Kd_steer = 7.5
 llim_steer = -50
 ulim_steer = 50
 
-## Define PID params for the arm and hand. 
+## Define PID params for the arm and hand.
 Kp_arm = np.array([3.0, 4.0, 4.0, 5.0, 2.0, 2.0])
 Ki_arm = np.array([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-3])
 Kd_arm = np.array([0.0, 0.0, 0, 0, 0, 0])
@@ -138,7 +140,4 @@ Ki_hand = 1e-2
 Kd_hand = 0.0
 llim_hand = -10
 ulim_hand = 10
-hand_mask = np.array([1, 0, 1, 1,
-                      1, 0, 1, 1,
-                      1, 0, 1, 1,
-                      0, 1, 1, 1])
+hand_mask = np.array([1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1])

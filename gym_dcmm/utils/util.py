@@ -1,20 +1,22 @@
 import math
-import mujoco
-# numpy provides import array and linear algebra utilities
-import numpy as np
 
 # suppress warnings
 import warnings
-warnings.filterwarnings('ignore')
 
-from spatialmath import base
+import mujoco
 
-from gymnasium import spaces
+# numpy provides import array and linear algebra utilities
+import numpy as np
+
+warnings.filterwarnings("ignore")
+
+from typing import Dict
 
 import quaternion
-
+from gymnasium import spaces
 from omegaconf import DictConfig
-from typing import Dict
+from spatialmath import base
+
 
 class DynamicDelayBuffer:
     def __init__(self, maxlen):
@@ -30,10 +32,10 @@ class DynamicDelayBuffer:
         self.maxlen = new_maxlen
         while len(self.buffer) > self.maxlen:
             self.buffer.pop(0)
-    
+
     def clear(self):
         self.buffer.clear()
-    
+
     def __getitem__(self, key):
         return self.buffer[key]
 
@@ -43,7 +45,8 @@ class DynamicDelayBuffer:
     def __len__(self):
         return self.maxlen
 
-def omegaconf_to_dict(d: DictConfig)->Dict:
+
+def omegaconf_to_dict(d: DictConfig) -> Dict:
     """Converts an omegaconf DictConfig to a python Dict, respecting variable interpolation."""
     ret = {}
     for k, v in d.items():
@@ -52,6 +55,7 @@ def omegaconf_to_dict(d: DictConfig)->Dict:
         else:
             ret[k] = v
     return ret
+
 
 def calculate_arm_Te(pose, quate):
     """
@@ -63,11 +67,14 @@ def calculate_arm_Te(pose, quate):
         arm_ee_quat = np.quaternion(quate[0], quate[1], quate[2], quate[3])
     # Calculate forward kinematics (Tep) for the target end-effector pose
     res = np.zeros(9)
-    mujoco.mju_quat2Mat(res, np.array([arm_ee_quat.w, arm_ee_quat.x, arm_ee_quat.y, arm_ee_quat.z]))
+    mujoco.mju_quat2Mat(
+        res, np.array([arm_ee_quat.w, arm_ee_quat.x, arm_ee_quat.y, arm_ee_quat.z])
+    )
     Te = np.eye(4)
-    Te[:3,3] = pose
-    Te[:3,:3] = res.reshape((3,3))
+    Te[:3, 3] = pose
+    Te[:3, :3] = res.reshape((3, 3))
     return Te
+
 
 def get_total_dimension(data):
     # print("type data: ", type(data))
@@ -85,17 +92,23 @@ def get_total_dimension(data):
     # If it is a single element, return 1.
     else:
         return 1
-    
+
     return total_dimension
+
 
 def quaternion_to_rotation_matrix(q):
     """
     Convert quaternion to rotation matrix.
     """
     w, x, y, z = q
-    return np.array([[1 - 2*y**2 - 2*z**2, 2*x*y - 2*z*w, 2*x*z + 2*y*w],
-                     [2*x*y + 2*z*w, 1 - 2*x**2 - 2*z**2, 2*y*z - 2*x*w],
-                     [2*x*z - 2*y*w, 2*y*z + 2*x*w, 1 - 2*x**2 - 2*y**2]])
+    return np.array(
+        [
+            [1 - 2 * y**2 - 2 * z**2, 2 * x * y - 2 * z * w, 2 * x * z + 2 * y * w],
+            [2 * x * y + 2 * z * w, 1 - 2 * x**2 - 2 * z**2, 2 * y * z - 2 * x * w],
+            [2 * x * z - 2 * y * w, 2 * y * z + 2 * x * w, 1 - 2 * x**2 - 2 * y**2],
+        ]
+    )
+
 
 def cos_angle_between_vectors(v1, v2):
     """
@@ -113,6 +126,7 @@ def cos_angle_between_vectors(v1, v2):
     # angle_rad = np.arccos(np.clip(cos_angle, -1.0, 1.0))
     # angle_deg = np.degrees(angle_rad)
     # return angle_deg
+
 
 def random_q(model: mujoco.MjModel, i: int = 1) -> np.ndarray:
     """
@@ -134,9 +148,12 @@ def random_q(model: mujoco.MjModel, i: int = 1) -> np.ndarray:
 
         for j in range(i):
             for i in range(model.nv):
-                q[j, i] = np.random.uniform(model.joint(i).range[0], model.joint(i).range[1])
+                q[j, i] = np.random.uniform(
+                    model.joint(i).range[0], model.joint(i).range[1]
+                )
 
     return q
+
 
 def angle_axis_python(T, Td):
     e = np.empty(6)
@@ -160,6 +177,7 @@ def angle_axis_python(T, Td):
 
     return e
 
+
 def clip_norm(arr, upper_bound):
     """
     Clip the norm of the array.
@@ -169,11 +187,17 @@ def clip_norm(arr, upper_bound):
         arr = arr / norm * upper_bound
     return arr
 
+
 def relative_quaternion(q1, q2):
     # Calculate relative quaternion
     ## Note: DO NOT mess up the multiplication order of the quaternion :)
-    quat_relative =  np.quaternion(q1[0], q1[1], q1[2], q1[3]).inverse() * np.quaternion(q2[0], q2[1], q2[2], q2[3])
-    return np.array([quat_relative.w, quat_relative.x, quat_relative.y, quat_relative.z])
+    quat_relative = np.quaternion(q1[0], q1[1], q1[2], q1[3]).inverse() * np.quaternion(
+        q2[0], q2[1], q2[2], q2[3]
+    )
+    return np.array(
+        [quat_relative.w, quat_relative.x, quat_relative.y, quat_relative.z]
+    )
+
 
 def relative_position(p1, p2, a):
     # Calculate relative position in global coordinates
@@ -181,13 +205,14 @@ def relative_position(p1, p2, a):
     delta_y = p2[1] - p1[1]
     # Rotate relative position around origin
     x = delta_x * np.cos(a) + delta_y * np.sin(a)
-    y = - delta_x * np.sin(a) + delta_y * np.cos(a)
+    y = -delta_x * np.sin(a) + delta_y * np.cos(a)
 
     return x, y
 
-def quat2theta(qw,qz):
-  """
-  assume there is only rotation about the z-axis.
-  """
-  a = 2*np.arctan2(qz,qw)
-  return np.arctan2( np.sin(a), np.cos(a) )
+
+def quat2theta(qw, qz):
+    """
+    assume there is only rotation about the z-axis.
+    """
+    a = 2 * np.arctan2(qz, qw)
+    return np.arctan2(np.sin(a), np.cos(a))

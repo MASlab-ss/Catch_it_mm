@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class MLP(nn.Module):
@@ -23,18 +22,23 @@ class MLP(nn.Module):
 
     @staticmethod
     def init_weights(sequential, scales):
-        [torch.nn.init.orthogonal_(module.weight, gain=scales[idx]) for idx, module in
-         enumerate(mod for mod in sequential if isinstance(mod, nn.Linear))]
+        [
+            torch.nn.init.orthogonal_(module.weight, gain=scales[idx])
+            for idx, module in enumerate(
+                mod for mod in sequential if isinstance(mod, nn.Linear)
+            )
+        ]
+
 
 class ActorCritic(nn.Module):
     def __init__(self, kwargs):
         nn.Module.__init__(self)
-        separate_value_mlp = kwargs.pop('separate_value_mlp')
+        separate_value_mlp = kwargs.pop("separate_value_mlp")
         self.separate_value_mlp = separate_value_mlp
 
-        actions_num = kwargs.pop('actions_num')
-        input_shape = kwargs.pop('input_shape')
-        self.units = kwargs.pop('actor_units')
+        actions_num = kwargs.pop("actions_num")
+        input_shape = kwargs.pop("input_shape")
+        self.units = kwargs.pop("actor_units")
         mlp_input_shape = input_shape[0]
 
         out_size = self.units[-1]
@@ -45,16 +49,18 @@ class ActorCritic(nn.Module):
         self.value = torch.nn.Linear(out_size, 1)
         self.mu = torch.nn.Linear(out_size, actions_num)
         self.sigma = nn.Parameter(
-            torch.zeros(actions_num, requires_grad=True, dtype=torch.float32), requires_grad=True)
+            torch.zeros(actions_num, requires_grad=True, dtype=torch.float32),
+            requires_grad=True,
+        )
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.Conv1d):
                 fan_out = m.kernel_size[0] * m.out_channels
                 m.weight.data.normal_(mean=0.0, std=np.sqrt(2.0 / fan_out))
-                if getattr(m, 'bias', None) is not None:
+                if getattr(m, "bias", None) is not None:
                     torch.nn.init.zeros_(m.bias)
             if isinstance(m, nn.Linear):
-                if getattr(m, 'bias', None) is not None:
+                if getattr(m, "bias", None) is not None:
                     torch.nn.init.zeros_(m.bias)
         nn.init.constant_(self.sigma, 0)
 
@@ -62,7 +68,7 @@ class ActorCritic(nn.Module):
         # value output layer with scale 1
         torch.nn.init.orthogonal_(self.mu.weight, gain=0.01)
         torch.nn.init.orthogonal_(self.value.weight, gain=1.0)
-    
+
     def save_actor(self, actor_mlp_path, actor_head_path):
         """
         Save actor and critic model parameters to files.
@@ -81,11 +87,11 @@ class ActorCritic(nn.Module):
         distr = torch.distributions.Normal(mu, sigma)
         selected_action = distr.sample()
         result = {
-            'neglogpacs': -distr.log_prob(selected_action).sum(1),
-            'values': value,
-            'actions': selected_action,
-            'mus': mu,
-            'sigmas': sigma,
+            "neglogpacs": -distr.log_prob(selected_action).sum(1),
+            "values": value,
+            "actions": selected_action,
+            "mus": mu,
+            "sigmas": sigma,
         }
         return result
 
@@ -96,7 +102,7 @@ class ActorCritic(nn.Module):
         return mu
 
     def _actor_critic(self, obs_dict):
-        obs = obs_dict['obs']
+        obs = obs_dict["obs"]
 
         x = self.actor_mlp(obs)
         mu = self.mu(x)
@@ -110,17 +116,17 @@ class ActorCritic(nn.Module):
         return mu, mu * 0 + sigma, value
 
     def forward(self, input_dict):
-        prev_actions = input_dict.get('prev_actions', None)
+        prev_actions = input_dict.get("prev_actions", None)
         mu, logstd, value = self._actor_critic(input_dict)
         sigma = torch.exp(logstd)
         distr = torch.distributions.Normal(mu, sigma)
         entropy = distr.entropy().sum(dim=-1)
         prev_neglogp = -distr.log_prob(prev_actions).sum(1)
         result = {
-            'prev_neglogp': torch.squeeze(prev_neglogp),
-            'values': value,
-            'entropy': entropy,
-            'mus': mu,
-            'sigmas': sigma,
+            "prev_neglogp": torch.squeeze(prev_neglogp),
+            "values": value,
+            "entropy": entropy,
+            "mus": mu,
+            "sigmas": sigma,
         }
         return result

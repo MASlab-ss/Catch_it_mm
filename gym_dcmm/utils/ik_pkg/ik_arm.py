@@ -5,22 +5,28 @@ Reference Link: https://github.com/google-deepmind/dm_control/blob/main/dm_contr
                 https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html#mj-jac
                 https://github.com/petercorke/robotics-toolbox-python
 """
-import os, sys
-sys.path.append(os.path.abspath('../'))
-sys.path.append(os.path.abspath('./gym_dcmm/'))
-import mujoco
-import numpy as np
-from abc import ABC, abstractmethod
+
+import os
+import sys
+
+sys.path.append(os.path.abspath("../"))
+sys.path.append(os.path.abspath("./gym_dcmm/"))
 import time
-import qpsolvers as qp
-from functools import wraps
-from utils.util import calculate_arm_Te, angle_axis_python
 
 # suppress warnings
 import warnings
-warnings.filterwarnings('ignore')
+from abc import ABC, abstractmethod
+from functools import wraps
+
+import mujoco
+import numpy as np
+import qpsolvers as qp
+from utils.util import angle_axis_python, calculate_arm_Te
+
+warnings.filterwarnings("ignore")
 
 DEBUG_IK = False
+
 
 class IK(ABC):
     """
@@ -37,11 +43,11 @@ class IK(ABC):
         we: np.ndarray = np.ones(6),
         # problems: int = 1000,
         reject_jl: bool = True,
-        ps: float=0.1,
-        λΣ: float=0.0,
-        λm: float=0.0, 
+        ps: float = 0.1,
+        λΣ: float = 0.0,
+        λm: float = 0.0,
         copy: bool = False,
-        debug: bool = False
+        debug: bool = False,
     ):
         """
         name: The name of the IK algorithm
@@ -69,7 +75,13 @@ class IK(ABC):
         self.copy = copy
         self.debug = debug
 
-    def solve(self, model: mujoco.MjModel, data: mujoco.MjData, Tep: np.ndarray, q0: np.ndarray):
+    def solve(
+        self,
+        model: mujoco.MjModel,
+        data: mujoco.MjData,
+        Tep: np.ndarray,
+        q0: np.ndarray,
+    ):
         """
         This method will attempt to solve the IK problem and obtain joint coordinates
         which result the the end-effector pose Tep.
@@ -124,10 +136,11 @@ class IK(ABC):
                 if not jl_valid and self.reject_jl:
                     # Abandon search and try again
                     # print("break limits!!!!!!!!!!!!!!!!!!!!!")
-                    if DEBUG_IK or self.debug: print("break limits!!!!!!!!!!!!!!!!!!!!!")
+                    if DEBUG_IK or self.debug:
+                        print("break limits!!!!!!!!!!!!!!!!!!!!!")
                     continue
                 else:
-                    if DEBUG_IK or self.debug: 
+                    if DEBUG_IK or self.debug:
                         print("q_solved: {}, error: {}".format(q_solved, error))
                         print("iteration: {}, total_t: {}".format(i, total_t))
                         print("solved ik!! \n")
@@ -137,7 +150,7 @@ class IK(ABC):
         # print("q_solved: {}, error: {}".format(q_solved, error))
         # print("iteration: {}, total_t: {}".format(i, total_t))
         # print("failed ik!! \n")
-        if DEBUG_IK or self.debug: 
+        if DEBUG_IK or self.debug:
             print("q_solved: {}, error: {}".format(q_solved, error))
             print("iteration: {}, total_t: {}".format(i, total_t))
             print("failed ik!! \n")
@@ -170,7 +183,6 @@ class IK(ABC):
 
         # Loop through the joints in the ETS
         for i in range(model.nv):
-
             # Get the corresponding joint limits
             ql0 = model.joint(i).range[0]
             ql1 = model.joint(i).range[1]
@@ -189,12 +201,15 @@ class IK(ABC):
         return True
 
     @abstractmethod
-    def step(self, model: mujoco.MjModel, data: mujoco.MjData, Tep: np.ndarray, q: np.ndarray):
+    def step(
+        self, model: mujoco.MjModel, data: mujoco.MjData, Tep: np.ndarray, q: np.ndarray
+    ):
         """
         Superclasses will implement this method to perform a step of the implemented
         IK algorithm
         """
         pass
+
 
 def timing(func):
     @wraps(func)
@@ -204,7 +219,9 @@ def timing(func):
         t_end = time.time()
         t = t_end - t_start
         return t, E, q
+
     return wrap
+
 
 class QP(IK):
     def __init__(self, name="QP", λj=1.0, λs=1.0, **kwargs):
@@ -215,21 +232,30 @@ class QP(IK):
         self.λs = λs
 
         if self.λΣ > 0.0:
-            self.name += ' Σ'
+            self.name += " Σ"
 
         if self.λm > 0.0:
-            self.name += ' Jm'
+            self.name += " Jm"
         # print("self.ilimit: ", self.ilimit)
 
     @timing
-    def step(self, model: mujoco.MjModel, data: mujoco.MjData, Tep: np.ndarray, q: np.ndarray, i: int):
+    def step(
+        self,
+        model: mujoco.MjModel,
+        data: mujoco.MjData,
+        Tep: np.ndarray,
+        q: np.ndarray,
+        i: int,
+    ):
         # Calculate forward kinematics (Te)
         # mujoco.mj_resetData(model, data)
         data.qpos[:] = q[:]
         # Do not use mj_kinematics, it does more than foward the position kinematics!
         # mujoco.mj_kinematics(model, data)
         mujoco.mj_fwdPosition(model, data)
-        Te = calculate_arm_Te(data.body("piper_link6").xpos, data.body("piper_link6").xquat)
+        Te = calculate_arm_Te(
+            data.body("piper_link6").xpos, data.body("piper_link6").xquat
+        )
         # print("Tep: ", Tep)
         # print("Te: ", Te)
         # exit(1)
@@ -239,7 +265,7 @@ class QP(IK):
             # print("NO NEED to calculate IK!!!!!!!!!!!!!")
             # data.qpos[:] = q[:]
             return E, q
-        
+
         # Calculate the Jacobian
         jacp = np.zeros((3, model.nv))
         jacr = np.zeros((3, model.nv))
@@ -257,7 +283,7 @@ class QP(IK):
 
         # The equality contraints
         Aeq = np.concatenate((J, np.eye(6)), axis=1)
-        beq = 2*e.reshape((6,))
+        beq = 2 * e.reshape((6,))
 
         # The inequality constraints for joint limit avoidance
         if self.λΣ > 0.0:
@@ -272,7 +298,7 @@ class QP(IK):
                 ql0 = model.joint(i).range[0]
                 ql1 = model.joint(i).range[1]
                 # Calculate the influence angle/distance (in radians or metres) in null space motion becomes active
-                pi = (model.joint(i).range[1] - model.joint(i).range[0])/2
+                pi = (model.joint(i).range[1] - model.joint(i).range[0]) / 2
 
                 if ql1 - q[i] <= pi:
                     Bin_l[i] = ((ql1 - q[i]) - self.ps) / (pi - self.ps)
@@ -283,11 +309,11 @@ class QP(IK):
                     Ain_l[i, i] = -1
 
             Ain[: model.nv, : model.nv] = Ain_l
-            bin[: model.nv] =  (1.0 / self.λΣ) * Bin_l
+            bin[: model.nv] = (1.0 / self.λΣ) * Bin_l
         else:
             Ain = None
             bin = None
-        
+
         # TODO: Manipulability maximisation
         # if self.λm > 0.0:
         #     Jm = ets.jacobm(q).reshape((model.nv,))
@@ -295,20 +321,21 @@ class QP(IK):
         # else:
         #     c = np.zeros(model.nv + 6)
         c = np.zeros(model.nv + 6)
-            
+
         # print("Q: ", Q)
         # print("c: ", c)
         # print("Ain: ", Ain)
         # print("bin: ", bin)
         # print("Aeq: ", Aeq)
         # print("beq: ", beq)
-        xd = qp.solve_qp(Q, c, Ain, bin, Aeq, beq, lb=None, ub=None, solver='quadprog')
+        xd = qp.solve_qp(Q, c, Ain, bin, Aeq, beq, lb=None, ub=None, solver="quadprog")
         # print("xd: ", xd)
         # print("xd: ", xd[: 6])
         q += xd[: model.nv]
         # print("q: ", q)
         # data.qpos[:] = q[:]
         return E, q
+
 
 def null_Σ(model: mujoco.MjModel, data: mujoco.MjData, q: np.ndarray, ps: float):
     """
@@ -322,7 +349,7 @@ def null_Σ(model: mujoco.MjModel, data: mujoco.MjData, q: np.ndarray, ps: float
     pi: The influence angle/distance (in radians or metres) in which the velocity
         damper becomes active
 
-    returns: Σ 
+    returns: Σ
     """
 
     # Add cost to going in the direction of joint limits, if they are within
@@ -333,28 +360,25 @@ def null_Σ(model: mujoco.MjModel, data: mujoco.MjData, q: np.ndarray, ps: float
         qi = q[i]
         ql0 = model.joint(i).range[0]
         ql1 = model.joint(i).range[1]
-        pi = (model.joint(i).range[1] - model.joint(i).range[0])/2
+        pi = (model.joint(i).range[1] - model.joint(i).range[0]) / 2
 
         if qi - ql0 <= pi:
-            Σ[i, 0] = (
-                -np.power(((qi - ql0) - pi), 2) / np.power((ps - pi), 2)
-            )
+            Σ[i, 0] = -np.power(((qi - ql0) - pi), 2) / np.power((ps - pi), 2)
         if ql1 - qi <= pi:
-            Σ[i, 0] = (
-                np.power(((ql1 - qi) - pi), 2) / np.power((ps - pi), 2)
-            )
+            Σ[i, 0] = np.power(((ql1 - qi) - pi), 2) / np.power((ps - pi), 2)
 
     return -Σ
 
+
 def calc_qnull(
-        model: mujoco.MjModel,
-        data: mujoco.MjData,
-        q: np.ndarray,
-        J: np.ndarray,
-        λΣ: float,
-        # λm: float,
-        ps: float,
-    ):
+    model: mujoco.MjModel,
+    data: mujoco.MjData,
+    q: np.ndarray,
+    J: np.ndarray,
+    λΣ: float,
+    # λm: float,
+    ps: float,
+):
     """
     Calculates the desired null-space motion according to the gains λΣ and λm.
     This is a helper method that is used within the `step` method of an IK solver
@@ -377,26 +401,29 @@ def calc_qnull(
 
     # Calculate the null-space motion
     if λΣ > 0.0:
-        null_space = (np.eye(model.nv) - np.linalg.pinv(J) @ J)
+        null_space = np.eye(model.nv) - np.linalg.pinv(J) @ J
         qnull = null_space @ qnull_grad
 
     return qnull.flatten()
 
+
 class LM_Chan(IK):
     def __init__(self, λ=1.0, **kwargs):
         super().__init__(**kwargs)
-        
+
         self.name = f"LM (Chan λ={λ})"
         self.λ = λ
 
         if self.λΣ > 0.0:
-            self.name += ' Σ'
+            self.name += " Σ"
 
         if self.λm > 0.0:
-            self.name += ' Jm'
+            self.name += " Jm"
 
     @timing
-    def step(self, model: mujoco.MjModel, data: mujoco.MjData, Tep: np.ndarray, q: np.ndarray):
+    def step(
+        self, model: mujoco.MjModel, data: mujoco.MjData, Tep: np.ndarray, q: np.ndarray
+    ):
         # Calculate forward kinematics (Te)
         mujoco.mj_resetData(model, data)
         data.qpos = q
@@ -404,10 +431,10 @@ class LM_Chan(IK):
         # mujoco.mj_kinematics(model, data)
         mujoco.mj_fwdPosition(model, data)
         Te = np.eye(4)
-        Te[:3,3] = data.body("link6").xpos
+        Te[:3, 3] = data.body("link6").xpos
         res = np.zeros(9)
         mujoco.mju_quat2Mat(res, data.body("link6").xquat)
-        Te[:3,:3] = res.reshape((3,3))
+        Te[:3, :3] = res.reshape((3, 3))
         # print(Te)
 
         # Calculate the error
@@ -428,16 +455,33 @@ class LM_Chan(IK):
 
         return E, q
 
+
 class IKArm:
-    def __init__(self, solver_type='QP', ps=0.001, λΣ=10, λj=0.1, λs=1.0, λ=0.1, tol=2e-3, ilimit=100):
-        if solver_type=='QP':
+    def __init__(
+        self,
+        solver_type="QP",
+        ps=0.001,
+        λΣ=10,
+        λj=0.1,
+        λs=1.0,
+        λ=0.1,
+        tol=2e-3,
+        ilimit=100,
+    ):
+        if solver_type == "QP":
             self.solver = QP(λj=λj, λs=λs, ps=ps, λΣ=λΣ, tol=tol, ilimit=ilimit)
-        elif solver_type=='LM_Chan':
+        elif solver_type == "LM_Chan":
             self.solver = LM_Chan(λ=λ, ps=ps, λΣ=λΣ, tol=tol, ilimit=ilimit)
         else:
             raise ValueError("Invalid solver type")
-    
-    def solve(self, model: mujoco.MjModel, data: mujoco.MjData, Tep: np.ndarray, q0: np.ndarray):
+
+    def solve(
+        self,
+        model: mujoco.MjModel,
+        data: mujoco.MjData,
+        Tep: np.ndarray,
+        q0: np.ndarray,
+    ):
         self.q0 = np.zeros(model.nv)
         self.q0[:] = q0[:]
         # print("before self.q0: ", self.q0)
@@ -445,5 +489,12 @@ class IKArm:
         # print("after self.q0: ", self.q0)
         if not result_IK[1]:
             # print("Failed result_IK: ", result_IK)
-            return self.q0, result_IK[1], result_IK[2], result_IK[3], result_IK[4], result_IK[5]
+            return (
+                self.q0,
+                result_IK[1],
+                result_IK[2],
+                result_IK[3],
+                result_IK[4],
+                result_IK[5],
+            )
         return result_IK

@@ -4,19 +4,25 @@ Version@2024-10-17
 All Rights Reserved
 ABOUT: this file constains the basic class of the DexCatch with Mobile Manipulation (DCMM) in the MuJoCo simulation environment.
 """
-import os, sys
-sys.path.append(os.path.abspath('../'))
+
+import os
+import sys
+
+sys.path.append(os.path.abspath("../"))
 import copy
-import configs.env.DcmmCfg as DcmmCfg
+import xml.etree.ElementTree as ET
+from collections import deque
+
 import mujoco
-from utils.util import calculate_arm_Te
-from utils.pid import PID, GripperPID
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 from utils.ik_pkg.ik_arm import IKArm
 from utils.ik_pkg.ik_base import IKBase
-from scipy.spatial.transform import Rotation as R
-from collections import deque
-import xml.etree.ElementTree as ET
+from utils.pid import PID, GripperPID
+from utils.util import calculate_arm_Te
+
+import configs.env.DcmmCfg as DcmmCfg
+
 
 # Function to convert XML file to string
 def xml_to_string(file_path):
@@ -26,12 +32,13 @@ def xml_to_string(file_path):
         root = tree.getroot()
 
         # Convert the XML element tree to a string
-        xml_str = ET.tostring(root, encoding='unicode')
-        
+        xml_str = ET.tostring(root, encoding="unicode")
+
         return xml_str
     except Exception as e:
         print(f"Error: {e}")
         return None
+
 
 DEBUG_ARM = False
 DEBUG_BASE = False
@@ -51,19 +58,28 @@ class MJ_DCMM(object):
     - open_viewer: whether to open the viewer initially
 
     """
-    def __init__(self, 
-                 model=None, 
-                 model_arm=None, 
-                 viewer=True, 
-                 object_name='object',
-                 object_eval=False, 
-                 timestep=0.002):
+
+    def __init__(
+        self,
+        model=None,
+        model_arm=None,
+        viewer=True,
+        object_name="object",
+        object_eval=False,
+        timestep=0.002,
+    ):
         self.viewer = None
         self.open_viewer = viewer
         # Load the MuJoCo model
         if model is None:
-            if not object_eval: model_path = os.path.join(DcmmCfg.ASSET_PATH, DcmmCfg.XML_DCMM_LEAP_OBJECT_PATH)
-            else: model_path = os.path.join(DcmmCfg.ASSET_PATH, DcmmCfg.XML_DCMM_LEAP_UNSEEN_OBJECT_PATH)
+            if not object_eval:
+                model_path = os.path.join(
+                    DcmmCfg.ASSET_PATH, DcmmCfg.XML_DCMM_LEAP_OBJECT_PATH
+                )
+            else:
+                model_path = os.path.join(
+                    DcmmCfg.ASSET_PATH, DcmmCfg.XML_DCMM_LEAP_UNSEEN_OBJECT_PATH
+                )
             self.model_xml_string = xml_to_string(model_path)
         else:
             self.model = model
@@ -92,22 +108,53 @@ class MJ_DCMM(object):
         try:
             _ = self.data.body(object_name)
         except:
-            print("The object name is not found in the model!\
-                  \nPlease check the object name in the .xml file.")
+            print(
+                "The object name is not found in the model!\
+                  \nPlease check the object name in the .xml file."
+            )
             raise ValueError
         self.object_name = object_name
         # Get the geom id of the hand, the floor and the object
-        self.hand_start_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, 'piper_link7') - 1
-        self.floor_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, 'floor')
-        self.object_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, self.object_name)
+        self.hand_start_id = (
+            mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "piper_link7") - 1
+        )
+        self.floor_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+        self.object_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_GEOM, self.object_name
+        )
 
         # Mobile Base Control
         self.rp_base = np.zeros(3)
         self.rp_ref_base = np.zeros(3)
-        self.drive_pid = PID("drive", DcmmCfg.Kp_drive, DcmmCfg.Ki_drive, DcmmCfg.Kd_drive, dim=4, llim=DcmmCfg.llim_drive, ulim=DcmmCfg.ulim_drive, debug=False)
+        self.drive_pid = PID(
+            "drive",
+            DcmmCfg.Kp_drive,
+            DcmmCfg.Ki_drive,
+            DcmmCfg.Kd_drive,
+            dim=4,
+            llim=DcmmCfg.llim_drive,
+            ulim=DcmmCfg.ulim_drive,
+            debug=False,
+        )
         # self.steer_pid = PID("steer", DcmmCfg.Kp_steer, DcmmCfg.Ki_steer, DcmmCfg.Kd_steer, dim=4, llim=DcmmCfg.llim_steer, ulim=DcmmCfg.ulim_steer, debug=False)
-        self.arm_pid = PID("arm", DcmmCfg.Kp_arm, DcmmCfg.Ki_arm, DcmmCfg.Kd_arm, dim=6, llim=DcmmCfg.llim_arm, ulim=DcmmCfg.ulim_arm, debug=False)
-        self.hand_pid = GripperPID(DcmmCfg.Kp_hand, DcmmCfg.Ki_hand, DcmmCfg.Kd_hand, llim=DcmmCfg.llim_hand, ulim=DcmmCfg.ulim_hand, debug=False)
+        self.arm_pid = PID(
+            "arm",
+            DcmmCfg.Kp_arm,
+            DcmmCfg.Ki_arm,
+            DcmmCfg.Kd_arm,
+            dim=6,
+            llim=DcmmCfg.llim_arm,
+            ulim=DcmmCfg.ulim_arm,
+            debug=False,
+        )
+        self.hand_pid = GripperPID(
+            DcmmCfg.Kp_hand,
+            DcmmCfg.Ki_hand,
+            DcmmCfg.Kd_hand,
+            llim=DcmmCfg.llim_hand,
+            ulim=DcmmCfg.ulim_hand,
+            debug=False,
+        )
         self.cmd_lin_y = 0.0
         self.cmd_lin_x = 0.0
         self.arm_act = False
@@ -115,8 +162,13 @@ class MJ_DCMM(object):
         self.drive_vel = np.array([0.0, 0.0, 0.0, 0.0])
 
         ## Define Inverse Kinematics Solver for the Arm
-        self.ik_arm = IKArm(solver_type=DcmmCfg.ik_config["solver_type"], ilimit=DcmmCfg.ik_config["ilimit"], 
-                            ps=DcmmCfg.ik_config["ps"], λΣ=DcmmCfg.ik_config["λΣ"], tol=DcmmCfg.ik_config["ee_tol"])
+        self.ik_arm = IKArm(
+            solver_type=DcmmCfg.ik_config["solver_type"],
+            ilimit=DcmmCfg.ik_config["ilimit"],
+            ps=DcmmCfg.ik_config["ps"],
+            λΣ=DcmmCfg.ik_config["λΣ"],
+            tol=DcmmCfg.ik_config["ee_tol"],
+        )
 
         ## Initialize the camera parameters
         # self.model.vis.global_.offwidth = DcmmCfg.cam_config["width"]
@@ -155,7 +207,10 @@ class MJ_DCMM(object):
         for i in range(self.model.njnt):
             print(
                 "Joint ID: {}, Joint Name: {}, Limits: {}, Damping: {}".format(
-                    i, self.model.joint(i).name, self.model.jnt_range[i], self.model.dof_damping[i]
+                    i,
+                    self.model.joint(i).name,
+                    self.model.jnt_range[i],
+                    self.model.dof_damping[i],
                 )
             )
 
@@ -217,37 +272,43 @@ class MJ_DCMM(object):
                 )
             )
         print("\nSimulation Timestep: ", self.model.opt.timestep)
-    
+
     def move_base_vel(self, target_base_vel):
         self.drive_vel = IKBase(target_base_vel[0], 0, target_base_vel[1])
         print("self_drive_vel ikbase:", self.drive_vel)
         ####################
         ## No bugs so far ##
         ####################
-        # Mobile base steering and driving control 
+        # Mobile base steering and driving control
         # TODO: angular velocity is not correct when the robot is self-rotating.
         # current_steer_pos = np.array([self.data.joint("steer_fl").qpos[0],
-        #                               self.data.joint("steer_fr").qpos[0], 
+        #                               self.data.joint("steer_fr").qpos[0],
         #                               self.data.joint("steer_rl").qpos[0],
         #                               self.data.joint("steer_rr").qpos[0]])
-        current_drive_vel = np.array([self.data.joint("front_left_wheel").qvel[0],
-                                      self.data.joint("front_right_wheel").qvel[0], 
-                                      self.data.joint("rear_left_wheel").qvel[0],
-                                      self.data.joint("rear_right_wheel").qvel[0]])
+        current_drive_vel = np.array(
+            [
+                self.data.joint("front_left_wheel").qvel[0],
+                self.data.joint("front_right_wheel").qvel[0],
+                self.data.joint("rear_left_wheel").qvel[0],
+                self.data.joint("rear_right_wheel").qvel[0],
+            ]
+        )
         print("current_drive_vel :", current_drive_vel)
         # mv_steer = self.steer_pid.update(self.steer_ang, current_steer_pos, self.data.time)
-        mv_drive = self.drive_pid.update(self.drive_vel, current_drive_vel, self.data.time)
+        mv_drive = self.drive_pid.update(
+            self.drive_vel, current_drive_vel, self.data.time
+        )
         print("pid mv_drive", mv_drive)
         for i in range(4):
             if current_drive_vel[i] > 0 and current_drive_vel[i] < self.drive_vel[i]:
-                mv_drive[i] = np.clip(mv_drive[i], 0, self.drive_ctrlrange[1] )
+                mv_drive[i] = np.clip(mv_drive[i], 0, self.drive_ctrlrange[1])
             elif current_drive_vel[i] < 0 and current_drive_vel[i] > self.drive_vel[i]:
                 mv_drive[i] = np.clip(mv_drive[i], self.drive_ctrlrange[0], 0)
-        
+
         # mv_steer = np.clip(mv_steer, self.steer_ctrlrange[0], self.steer_ctrlrange[1])
-        
+
         return mv_drive
-    
+
     def move_ee_pose(self, delta_pose):
         """
         Move the end-effector to the target pose.
@@ -260,34 +321,40 @@ class MJ_DCMM(object):
         self.current_ee_pos[:] = self.data_arm.body("piper_link6").xpos[:]
         self.current_ee_quat[:] = self.data_arm.body("piper_link6").xquat[:]
         target_pos = self.current_ee_pos + delta_pose[0:3]
-        r_delta = R.from_euler('zxy', delta_pose[3:6])
+        r_delta = R.from_euler("zxy", delta_pose[3:6])
         r_current = R.from_quat(self.current_ee_quat)
         target_quat = (r_delta * r_current).as_quat()
         result_QP = self.ik_arm_solve(target_pos, target_quat)
-        if DEBUG_ARM: print("result_QP: ", result_QP)
+        if DEBUG_ARM:
+            print("result_QP: ", result_QP)
         # Update the qpos of the arm with the IK solution
         self.data_arm.qpos[0:6] = result_QP[0]
         mujoco.mj_fwdPosition(self.model_arm, self.data_arm)
-        
+
         # Compute the ee_length
         relative_ee_pos = target_pos - self.data_arm.body("piper_link1").xpos
         ee_length = np.linalg.norm(relative_ee_pos)
 
         return result_QP, ee_length
-    
+
     def ik_arm_solve(self, target_pose, target_quate):
         """
         Solve the IK problem for the arm.
         """
         # Update the arm joint position to the previous one
         Tep = calculate_arm_Te(target_pose, target_quate)
-        if DEBUG_ARM: print("Tep: ", Tep)
-        result_QP = self.ik_arm.solve(self.model_arm, self.data_arm, Tep, self.data_arm.qpos[0:6])
+        if DEBUG_ARM:
+            print("Tep: ", Tep)
+        result_QP = self.ik_arm.solve(
+            self.model_arm, self.data_arm, Tep, self.data_arm.qpos[0:6]
+        )
         return result_QP
 
-    def set_throw_pos_vel(self, 
-                          pose = np.array([0, 0, 0, 1, 0, 0, 0]), 
-                          velocity = np.array([0, 0, 0, 0, 0, 0])):
+    def set_throw_pos_vel(
+        self,
+        pose=np.array([0, 0, 0, 1, 0, 0, 0]),
+        velocity=np.array([0, 0, 0, 0, 0, 0]),
+    ):
         self.data.qpos[18:25] = pose
         self.data.qvel[17:23] = velocity
 
@@ -322,13 +389,13 @@ class MJ_DCMM(object):
         """
 
         if not self.cam_init:
-            self.create_camera_data(DcmmCfg.cam_config["width"], DcmmCfg.cam_config["height"], camera)
+            self.create_camera_data(
+                DcmmCfg.cam_config["width"], DcmmCfg.cam_config["height"], camera
+            )
 
         # Create coordinate vector
-        pixel_coord = np.array([pixel_x, 
-                                pixel_y, 
-                                1]) * (depth)
-        
+        pixel_coord = np.array([pixel_x, pixel_y, 1]) * (depth)
+
         # Get position relative to camera
         pos_c = np.linalg.inv(self.cam_matrix) @ pixel_coord
         # Transform to the global frame axis
@@ -367,7 +434,13 @@ class MJ_DCMM(object):
         self.cam_matrix = np.array(((f, 0, width / 2), (0, f, height / 2), (0, 0, 1)))
         # Rotation of camera in world coordinates
         self.cam_rot_mat = self.model.cam_mat0[cam_id]
-        self.cam_rot_mat = np.reshape(self.cam_rot_mat, (3, 3)) @ np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]])
+        self.cam_rot_mat = np.reshape(self.cam_rot_mat, (3, 3)) @ np.array(
+            [[1, 0, 0], [0, 0, 1], [0, -1, 0]]
+        )
         # Position of camera in world coordinates
-        self.cam_pos = self.model.cam_pos0[cam_id] + self.data.body("base_link").xpos - self.data.body("arm_base").xpos
+        self.cam_pos = (
+            self.model.cam_pos0[cam_id]
+            + self.data.body("base_link").xpos
+            - self.data.body("arm_base").xpos
+        )
         self.cam_init = True

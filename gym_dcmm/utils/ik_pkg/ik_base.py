@@ -1,8 +1,13 @@
-import os, sys
-sys.path.append(os.path.abspath('../../'))
-import configs.env.DcmmCfg as DcmmCfg
+import os
+import sys
+
+sys.path.append(os.path.abspath("../../"))
 import math
+
 import numpy as np
+
+import configs.env.DcmmCfg as DcmmCfg
+
 
 def Damper(value, min, max):
     if value < min:
@@ -12,7 +17,8 @@ def Damper(value, min, max):
     else:
         return value
 
-def IKBase(v_lin_x, v_lin_y, v_yaw = 0.0):
+
+def IKBase(v_lin_x, v_lin_y, v_yaw=0.0):
     """
     Calculate the inverse kinematics for a 4 wheel drive mobile base.
 
@@ -25,35 +31,41 @@ def IKBase(v_lin_x, v_lin_y, v_yaw = 0.0):
         data: updated mujoco data object
     """
     # print("vvvv", v_lin_x, v_lin_y, v_yaw)
-    if math.fabs(v_lin_y) > 0.01: print("the mobile base has wrong moving state!!!!!!!", v_lin_x, v_lin_y, v_yaw)
-    if math.fabs(v_lin_y) < 0.01: v_lin_y = 0.0
-    if math.fabs(v_yaw) < 0.01: v_yaw = 0.0
-    if math.fabs(v_lin_y) < 0.01 and math.fabs(v_lin_x) < 0.01 and math.fabs(v_yaw) < 0.01:
+    if math.fabs(v_lin_y) > 0.01:
+        print("the mobile base has wrong moving state!!!!!!!", v_lin_x, v_lin_y, v_yaw)
+    if math.fabs(v_lin_y) < 0.01:
+        v_lin_y = 0.0
+    if math.fabs(v_yaw) < 0.01:
+        v_yaw = 0.0
+    if (
+        math.fabs(v_lin_y) < 0.01
+        and math.fabs(v_lin_x) < 0.01
+        and math.fabs(v_yaw) < 0.01
+    ):
         return np.array([0.0, 0.0, 0.0, 0.0])
-    
+
     v_left = 0
     v_right = 0
     if math.fabs(v_yaw) > 0:
         r = v_lin_x / v_yaw
-        h = DcmmCfg.RangerMiniV2Params['Half of the wheelbase']
-        if r < h: print("the mobile base vel is wrong!!!!!")
+        h = DcmmCfg.RangerMiniV2Params["Half of the wheelbase"]
+        if r < h:
+            print("the mobile base vel is wrong!!!!!")
         v_left = (r - h) * v_yaw
         v_right = (r + h) * v_yaw
     else:
         v_left = v_lin_x
         v_right = v_lin_x
-    r_souct = DcmmCfg.RangerMiniV2Params['scout raduis']
+    r_souct = DcmmCfg.RangerMiniV2Params["scout raduis"]
 
     drive_vel = np.array([-v_left, v_right, -v_left, v_right]) / r_souct
 
     # sign = math.copysign(1.0, v_lin_y)
 
-
-
     # if math.fabs(v_lin_x) > 0.01:
     #     ## PARALLEL MOTION MODE
     #     steer_cmd = -math.atan(v_lin_x / (v_lin_y+1e-5))
-    #     steer_cmd = Damper(steer_cmd, -DcmmCfg.RangerMiniV2Params['max_steer_angle_parallel'], 
+    #     steer_cmd = Damper(steer_cmd, -DcmmCfg.RangerMiniV2Params['max_steer_angle_parallel'],
     #                        DcmmCfg.RangerMiniV2Params['max_steer_angle_parallel'])
     #     vel_cmd = sign*math.hypot(v_lin_y, v_lin_x)/DcmmCfg.RangerMiniV2Params['wheel_radius']
     #     return np.array([steer_cmd, steer_cmd, steer_cmd, steer_cmd]), np.array([vel_cmd, vel_cmd, vel_cmd, vel_cmd])
@@ -62,7 +74,7 @@ def IKBase(v_lin_x, v_lin_y, v_yaw = 0.0):
     #         radius = np.inf
     #     else:
     #         radius = abs(v_lin_y / v_yaw)
-    #     vel_fl = sign * math.hypot(v_lin_y - v_yaw*DcmmCfg.RangerMiniV2Params['steer_track']/2, 
+    #     vel_fl = sign * math.hypot(v_lin_y - v_yaw*DcmmCfg.RangerMiniV2Params['steer_track']/2,
     #                         v_yaw*DcmmCfg.RangerMiniV2Params['wheel_base']/2)/DcmmCfg.RangerMiniV2Params['wheel_radius']
     #     vel_fr = sign * math.hypot(v_lin_y + v_yaw*DcmmCfg.RangerMiniV2Params['steer_track']/2,
     #                             v_yaw*DcmmCfg.RangerMiniV2Params['wheel_base']/2)/DcmmCfg.RangerMiniV2Params['wheel_radius']
@@ -70,7 +82,7 @@ def IKBase(v_lin_x, v_lin_y, v_yaw = 0.0):
     #                             v_yaw*DcmmCfg.RangerMiniV2Params['wheel_base']/2)/DcmmCfg.RangerMiniV2Params['wheel_radius']
     #     vel_rr = sign * math.hypot(v_lin_y + v_yaw*DcmmCfg.RangerMiniV2Params['steer_track']/2,
     #                             v_yaw*DcmmCfg.RangerMiniV2Params['wheel_base']/2)/DcmmCfg.RangerMiniV2Params['wheel_radius']
-        
+
     #     if math.fabs(radius) < DcmmCfg.RangerMiniV2Params['min_turn_radius']:
     #         ## SPIN MOTION MODE
     #         fl_steering = math.copysign(math.pi/2, v_yaw)
@@ -79,9 +91,9 @@ def IKBase(v_lin_x, v_lin_y, v_yaw = 0.0):
     #         rr_steering = -fr_steering
     #     else:
     #         ## ACKERMAN MOTION MODE
-    #         fl_steering = math.atan(v_yaw*DcmmCfg.RangerMiniV2Params['wheel_base'] / 
+    #         fl_steering = math.atan(v_yaw*DcmmCfg.RangerMiniV2Params['wheel_base'] /
     #                             (2.0*v_lin_y - v_yaw*DcmmCfg.RangerMiniV2Params['steer_track']))
-    #         fr_steering = math.atan(v_yaw*DcmmCfg.RangerMiniV2Params['wheel_base'] / 
+    #         fr_steering = math.atan(v_yaw*DcmmCfg.RangerMiniV2Params['wheel_base'] /
     #                                 (2.0*v_lin_y + v_yaw*DcmmCfg.RangerMiniV2Params['steer_track']))
     #         rl_steering = -fl_steering
     #         rr_steering = -fr_steering

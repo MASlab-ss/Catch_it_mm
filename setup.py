@@ -12,7 +12,7 @@ root_dir = os.path.dirname(os.path.realpath(__file__))
 
 # Minimum dependencies required prior to installation
 INSTALL_REQUIRES = [
-    "gymnasium==0.29.1", 
+    "gymnasium==0.29.1",
     "mujoco>=3.0.0",
 ]
 
@@ -26,7 +26,10 @@ setup(
     include_package_data=True,
     install_requires=INSTALL_REQUIRES,
     packages=find_packages("."),
-    classifiers=["Natural Language :: English", "Programming Language :: Python :: 3.8"],
+    classifiers=[
+        "Natural Language :: English",
+        "Programming Language :: Python :: 3.8",
+    ],
     zip_safe=False,
 )
 

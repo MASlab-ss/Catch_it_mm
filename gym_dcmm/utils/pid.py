@@ -1,6 +1,9 @@
-import numpy as np
 import time as time_ss
+
+import numpy as np
+
 DEBUG_PID = True
+
 
 class PID:
     """
@@ -13,7 +16,10 @@ class PID:
         Kd: derivative gain
         offset: offset value (default = 0.0)
     """
-    def __init__(self, agent, Kp, Ki, Kd, dim, offset= 0.0, llim = -25, ulim = 25, debug=False):
+
+    def __init__(
+        self, agent, Kp, Ki, Kd, dim, offset=0.0, llim=-25, ulim=25, debug=False
+    ):
         self.agent = agent
         self.dim = dim
         self.Kp_initial = Kp
@@ -39,13 +45,14 @@ class PID:
         # print("eeeee",setpoint, measurement)
         e = setpoint[:] - measurement[:]
         # print("%s e: " % self.agent, e)
-        P = self.Kp*e
+        P = self.Kp * e
         if self.init == False:
             self.time_prev = time
             self.init = True
             D = 0.0
-        else: D = self.Kd*(e - self.e_prev)/(time - self.time_prev)
-        delta_I = self.Ki*e*(time - self.time_prev)
+        else:
+            D = self.Kd * (e - self.e_prev) / (time - self.time_prev)
+        delta_I = self.Ki * e * (time - self.time_prev)
         if DEBUG_PID or self.debug:
             print("############# Update %s PID #################" % self.agent)
             print("time - self.time_prev: ", time - self.time_prev)
@@ -58,7 +65,7 @@ class PID:
         # Velocity Damper
         D = self.Damper(D)
 
-        # Calculate Manipulated Variable - MV 
+        # Calculate Manipulated Variable - MV
         if DEBUG_PID or self.debug:
             print("P: ", P)
             print("I: ", self.integral)
@@ -76,12 +83,13 @@ class PID:
         self.time_prev = 0.0
         self.e_prev = np.zeros(self.dim)
         # Reload the Params
-        self.Kp = k*self.Kp_initial
-        self.llim = k*self.llim_initial
-        self.ulim = k*self.ulim_initial
+        self.Kp = k * self.Kp_initial
+        self.llim = k * self.llim_initial
+        self.ulim = k * self.ulim_initial
 
     def Damper(self, val_array):
         return np.clip(val_array, self.llim, self.ulim)
+
 
 class GripperPID:
     """
@@ -95,7 +103,10 @@ class GripperPID:
         u_offset: 初始开合偏移（例如张开时的间距）
         lim: 力控制限幅（默认 ±25）
     """
-    def __init__(self, Kp, Ki, Kd, gear=1.0, u_offset=0.0, llim = -25, ulim = 25, debug=False):
+
+    def __init__(
+        self, Kp, Ki, Kd, gear=1.0, u_offset=0.0, llim=-25, ulim=25, debug=False
+    ):
         self.Kp_initial = Kp
         self.Ki_initial = Ki
         self.Kd_initial = Kd
@@ -141,7 +152,7 @@ class GripperPID:
         print("I: ", I)
         print("D: ", D)
         force = np.clip(force * self.gear, self.llim, self.ulim)
-        print("hand kp",self.Kp)
+        print("hand kp", self.Kp)
         # 应用对称控制力
         # data.ctrl[self.aid7] = force
         # data.ctrl[self.aid8] = force
@@ -150,19 +161,17 @@ class GripperPID:
         return force
         # 更新状态
         if self.debug:
-            print(f"[GripperPID] q_gap: {q_gap:.4f}, error: {error:.4f}, force: {force:.4f}")
+            print(
+                f"[GripperPID] q_gap: {q_gap:.4f}, error: {error:.4f}, force: {force:.4f}"
+            )
 
-    def reset(self, k =1.0):
+    def reset(self, k=1.0):
         self.e_prev = 0.0
         self.e_sum = 0.0
         self.t_prev = None
-        self.Kp = k*self.Kp_initial
-        self.llim = k*self.llim_initial
-        self.ulim = k*self.ulim_initial
-
-
-
-
+        self.Kp = k * self.Kp_initial
+        self.llim = k * self.llim_initial
+        self.ulim = k * self.ulim_initial
 
 
 class IncremPID:
@@ -176,7 +185,8 @@ class IncremPID:
         Kd: derivative gain
         offset: offset value (default = 0.0)
     """
-    def __init__(self, Kp, Ki, Kd, dim, offset= 0.0):
+
+    def __init__(self, Kp, Ki, Kd, dim, offset=0.0):
         self.Kp = Kp
         self.Ki = Ki
         self.Kd = Kd
@@ -188,12 +198,12 @@ class IncremPID:
         # PID calculations
         e = np.zeros(len(setpoint))
         e = setpoint[:] - measurement[:]
-        
-        P = self.Kp*(e-self.e_prev)
-        I = self.Ki*e
-        D = self.Kd*(e - 2*self.e_prev + self.e_prev2)
 
-        # calculate manipulated variable - MV 
+        P = self.Kp * (e - self.e_prev)
+        I = self.Ki * e
+        D = self.Kd * (e - 2 * self.e_prev + self.e_prev2)
+
+        # calculate manipulated variable - MV
         MV = self.offset + P + I + D
         if DEBUG_PID:
             print("P: ", P)

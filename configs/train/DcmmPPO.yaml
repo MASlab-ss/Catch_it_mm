@@ -20,7 +20,7 @@ ppo:
   gamma: 0.99
   tau: 0.95
   learning_rate: 5e-4
-  lr_schedule: kl  # 'fixed' | 'linear' | 'kl' | 'cos'
+  lr_schedule: kl # 'fixed' | 'linear' | 'kl' | 'cos'
   kl_threshold: 0.016
   save_best_after: 500
   save_frequency: 2000
