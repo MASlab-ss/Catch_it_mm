@@ -824,7 +824,7 @@ class DcmmVecEnv(gym.Env):
         self.catch_time = self.Dcmm.data.time - self.start_time
 
         ## Reset the target velocity of the mobile base
-        self.Dcmm.target_base_vel = np.array([0.0, 0.0, 0.0])
+        self.Dcmm.target_base_vel = np.array([0.0, 0.0])
         ## Reset the target joint positions of the arm
         self.Dcmm.target_arm_qpos[:] = DcmmCfg.arm_joints[:]
         ## Reset the target joint positions of the hand
@@ -1059,7 +1059,7 @@ class DcmmVecEnv(gym.Env):
     def _step_mujoco_simulation(self, action_dict):
         ## TODO: Low-Pass-Filter the Base Velocity
         self.Dcmm.target_base_vel[0:2] = action_dict["base"]
-        action_arm = np.concatenate((action_dict["arm"], np.zeros(3)))
+        action_arm = np.concatenate((action_dict["arm"], np.zeros(2)))
         result_QP, _ = self.Dcmm.move_ee_pose(action_arm)
         if result_QP[1]:
             self.arm_limit = True
@@ -1290,7 +1290,7 @@ class DcmmVecEnv(gym.Env):
             delta_xyz_hand
         self.reset()
         # TODO:: 这里的action的维度需要后续调整 ss
-        action = np.zeros(8)
+        action = np.zeros(8) #car 2 arm 4 (xyz roll) hand (1 or 2?)
         while True:
             # Note: action's dim = 18, which includes 2 for the base, 4 for the arm, and 12 for the hand
             # print("##### stage: ", self.stage)
@@ -1300,10 +1300,10 @@ class DcmmVecEnv(gym.Env):
             # print("cmd_yaw: ", cmd_yaw)
             if trigger_delta:
                 print("delta_xyz: ", delta_xyz)
-                action[2:5] = np.array([delta_xyz, delta_xyz, delta_xyz])
+                action[2:6] = np.array([delta_xyz, delta_xyz, delta_xyz, delta_xyz])
                 trigger_delta = False
             else:
-                action[2:5] = np.zeros(3)
+                action[2:6] = np.zeros(4)
             # if trigger_delta_hand:
             #     print("delta_xyz_hand: ", delta_xyz_hand)
             #     action[6:18] = np.ones(12)*delta_xyz_hand
@@ -1311,7 +1311,7 @@ class DcmmVecEnv(gym.Env):
             # else:
             #     action[6:18] = np.zeros(12)
             base_tensor = action[:2]
-            arm_tensor = action[2:5]
+            arm_tensor = action[2:6]
             hand_tensor = action[6:8]
             actions_dict = {"arm": arm_tensor, "base": base_tensor, "hand": hand_tensor}
             # print("self.Dcmm.data.body('link6'):", self.Dcmm.data.body('link6'))

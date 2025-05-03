@@ -176,7 +176,7 @@ class MJ_DCMM(object):
         # self.create_camera_data(DcmmCfg.cam_config["width"], DcmmCfg.cam_config["height"], DcmmCfg.cam_config["name"])
 
         ## Initialize the target velocity of the mobile base
-        self.target_base_vel = np.zeros(3)
+        self.target_base_vel = np.zeros(2)
         self.target_arm_qpos = np.zeros(6)
         self.target_hand_qpos = np.zeros(2)
         ## Initialize the target joint positions of the arm
