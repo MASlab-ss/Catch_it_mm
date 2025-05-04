@@ -33,8 +33,6 @@ from utils.util import *
 import configs.env.DcmmCfg as DcmmCfg
 from gym_dcmm.agents.MujocoDcmm import MJ_DCMM
 
-
-
 # os.environ['MUJOCO_GL'] = 'egl'
 np.set_printoptions(precision=8)
 
@@ -149,8 +147,22 @@ class DcmmVecEnv(gym.Env):
         self.object_name = object_name
         self.imshow_cam = imshow_cam
 
-        self.plot_joint_names = ["piper_joint1", "piper_joint2", "piper_joint3", "piper_joint4", "piper_joint5", "piper_joint6"]
-        self.plot_actuator_names = ["act_joint1", "act_joint2", "act_joint3", "act_joint4", "act_joint5", "act_joint6"]  
+        self.plot_joint_names = [
+            "piper_joint1",
+            "piper_joint2",
+            "piper_joint3",
+            "piper_joint4",
+            "piper_joint5",
+            "piper_joint6",
+        ]
+        self.plot_actuator_names = [
+            "act_joint1",
+            "act_joint2",
+            "act_joint3",
+            "act_joint4",
+            "act_joint5",
+            "act_joint6",
+        ]
         self.plot_pid = False
         self.plot_num = 0
         self.n_plot = 6
@@ -265,11 +277,11 @@ class DcmmVecEnv(gym.Env):
             }
         )
         # Define the limit for the mobile base action
-        base_low = np.array([-4, -4, -4])
-        base_high = np.array([4, 4, 4])
+        base_low = np.array([-1.5, -3])
+        base_high = -base_low
         # Define the limit for the arm action
-        arm_low = -0.025 * np.ones(4)
-        arm_high = 0.025 * np.ones(4)
+        arm_low = -3 * np.ones(4)
+        arm_high = -arm_low
         # Define the limit for the hand action
         hand_low = np.array([self.Dcmm.model.jnt_range[i][0] for i in range(11, 13)])
         hand_high = np.array([self.Dcmm.model.jnt_range[i][1] for i in range(11, 13)])
@@ -286,7 +298,7 @@ class DcmmVecEnv(gym.Env):
         # Actions (dim = 20)
         self.action_space = spaces.Dict(
             {
-                "base": spaces.Box(base_low, base_high, shape=(3,), dtype=np.float32),
+                "base": spaces.Box(base_low, base_high, shape=(2,), dtype=np.float32),
                 "arm": spaces.Box(arm_low, arm_high, shape=(4,), dtype=np.float32),
                 "hand": spaces.Box(low=hand_low, high=hand_high, dtype=np.float32),
             }
@@ -636,7 +648,7 @@ class DcmmVecEnv(gym.Env):
             self.Dcmm.data.qpos[11:17],
             self.Dcmm.data.time,
         )  # 6
-        if(self.plot_pid == True):
+        if self.plot_pid == True:
             for i in range(self.n_plot):
                 self.q_log[i].append(self.Dcmm.data.qpos[11 + i])
                 self.ctrl_log[i].append(mv_arm[i])
@@ -793,7 +805,7 @@ class DcmmVecEnv(gym.Env):
 
         # Fill the buffer with initial control values
         self.action_buffer["base"] = deque([base_action] * base_len, maxlen=base_len)
-        self.action_buffer["arm"]  = deque([arm_action]  * arm_len,  maxlen=arm_len)
+        self.action_buffer["arm"] = deque([arm_action] * arm_len, maxlen=arm_len)
         self.action_buffer["hand"] = deque([hand_action] * hand_len, maxlen=hand_len)
 
     def _reset_simulation(self):
@@ -838,6 +850,7 @@ class DcmmVecEnv(gym.Env):
         # self.Dcmm.data.qfrc_applied[:] = 0.0
         # print("qfrc_bias:", self.Dcmm.data.qfrc_bias)
         # print("Constraint forces (efc_force):", self.Dcmm.data.efc_force)
+
     def reset(self):
         # Reset the basic simulation
         self._reset_simulation()
@@ -1086,7 +1099,14 @@ class DcmmVecEnv(gym.Env):
     def _step_mujoco_simulation(self, action_dict):
         ## TODO: Low-Pass-Filter the Base Velocity
         self.Dcmm.target_base_vel[0:2] = action_dict["base"]
-        action_arm = np.concatenate((action_dict["arm"][0:3], np.zeros(1), np.array([action_dict["arm"][3]]), np.zeros(1)))
+        action_arm = np.concatenate(
+            (
+                action_dict["arm"][0:3],
+                np.zeros(1),
+                np.array([action_dict["arm"][3]]),
+                np.zeros(1),
+            )
+        )
         result_QP, _ = self.Dcmm.move_ee_pose(action_arm)
         if result_QP[1]:
             self.arm_limit = True
@@ -1154,6 +1174,7 @@ class DcmmVecEnv(gym.Env):
                 break
 
     def step(self, action):
+        # print("step started", self.steps)
         self.steps += 1
         self._step_mujoco_simulation(action)
         # Get the obs and info
@@ -1208,6 +1229,7 @@ class DcmmVecEnv(gym.Env):
             # self.reset()
             pass
         # print(obs)
+        # print("step finished", self.steps, obs, reward, terminated, truncated, info)
         return obs, reward, terminated, truncated, info
 
     def preprocess_depth_with_mask(
@@ -1317,7 +1339,7 @@ class DcmmVecEnv(gym.Env):
             delta_xyz_hand
         self.reset()
         # TODO:: 这里的action的维度需要后续调整 ss
-        action = np.zeros(8) #car 2 arm 4 (xyz roll) hand (1 or 2?)
+        action = np.zeros(8)  # car 2 arm 4 (xyz roll) hand (1 or 2?)
         while not self._exit_requested:
             # Note: action's dim = 18, which includes 2 for the base, 4 for the arm, and 12 for the hand
             # print("##### stage: ", self.stage)
@@ -1346,25 +1368,27 @@ class DcmmVecEnv(gym.Env):
             # print("actions_dict", actions_dict)
             observation, reward, terminated, truncated, info = self.step(actions_dict)
             self.plot_num += 1
-    def plot_pid_curves(self):
-            dt = 0.0005
-            fig, axes = plt.subplots(self.n_plot, 1, figsize=(8, 3 * self.n_plot))
 
-            for i in range(self.n_plot):
-                # print(f"length of the q_log[{i}]: {len(self.q_log[i])}")
-                # print(f"length of the target_log[{i}]: {len(self.target_log[i])}")
-                # print(f"length of the ctrl_log[{i}]: {len(self.ctrl_log[i])}")
-                ax = axes[i] if self.n_plot > 1 else axes
-                t = np.arange(len(self.q_log[i])) * dt
-                ax.plot(t, self.q_log[i], label=f"{self.plot_joint_names[i]} pos")
-                ax.plot(t, self.target_log[i], linestyle='--', label='target')
-                ax.plot(t, self.ctrl_log[i], linestyle=':', label='ctrl')
-                ax.set_ylabel(self.plot_joint_names[i])
-                ax.set_xlabel("Time (s)")
-                ax.legend()
-                ax.grid(True)
-            plt.tight_layout()
-            plt.show() 
+    def plot_pid_curves(self):
+        dt = 0.0005
+        fig, axes = plt.subplots(self.n_plot, 1, figsize=(8, 3 * self.n_plot))
+
+        for i in range(self.n_plot):
+            # print(f"length of the q_log[{i}]: {len(self.q_log[i])}")
+            # print(f"length of the target_log[{i}]: {len(self.target_log[i])}")
+            # print(f"length of the ctrl_log[{i}]: {len(self.ctrl_log[i])}")
+            ax = axes[i] if self.n_plot > 1 else axes
+            t = np.arange(len(self.q_log[i])) * dt
+            ax.plot(t, self.q_log[i], label=f"{self.plot_joint_names[i]} pos")
+            ax.plot(t, self.target_log[i], linestyle="--", label="target")
+            ax.plot(t, self.ctrl_log[i], linestyle=":", label="ctrl")
+            ax.set_ylabel(self.plot_joint_names[i])
+            ax.set_xlabel("Time (s)")
+            ax.legend()
+            ax.grid(True)
+        plt.tight_layout()
+        plt.show()
+
 
 if __name__ == "__main__":
     os.chdir("../../")
@@ -1394,4 +1418,3 @@ if __name__ == "__main__":
         env_time=2.5,
         steps_per_policy=20,
     )
-

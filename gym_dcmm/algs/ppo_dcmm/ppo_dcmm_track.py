@@ -427,12 +427,12 @@ class PPO_Track(object):
         # De-normalize the actions
         if self.env.call("task")[0] == "Tracking":
             base_tensor = actions[:, :2] * self.action_track_denorm[0]
-            arm_tensor = actions[:, 2:5] * self.action_track_denorm[1]
-            hand_tensor = actions[:, 5:] * self.action_track_denorm[2]
+            arm_tensor = actions[:, 2:6] * self.action_track_denorm[1]
+            hand_tensor = actions[:, 6:] * self.action_track_denorm[2]
         else:
             base_tensor = actions[:, :2] * self.action_catch_denorm[0]
-            arm_tensor = actions[:, 2:5] * self.action_catch_denorm[1]
-            hand_tensor = actions[:, 5:] * self.action_catch_denorm[2]
+            arm_tensor = actions[:, 2:6] * self.action_catch_denorm[1]
+            hand_tensor = actions[:, 6:] * self.action_catch_denorm[2]
         actions_dict = {"arm": arm_tensor, "base": base_tensor, "hand": hand_tensor}
         return actions_dict
 
@@ -464,7 +464,7 @@ class PPO_Track(object):
                 actions, (0, self.full_action_dim - actions.size(1)), value=0
             )
             actions_dict = self.action2dict(actions)
-            # print("actions_dict: ", actions_dict)
+            print("actions_dict: ", actions_dict)
             obs, r, terminates, truncates, infos = self.env.step(actions_dict)
             # Map the obs
             self.obs = {"obs": self.obs2tensor(obs)}
