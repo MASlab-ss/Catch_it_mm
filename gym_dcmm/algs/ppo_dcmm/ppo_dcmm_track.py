@@ -464,7 +464,7 @@ class PPO_Track(object):
                 actions, (0, self.full_action_dim - actions.size(1)), value=0
             )
             actions_dict = self.action2dict(actions)
-            print("actions_dict: ", actions_dict)
+            # print("actions_dict: ", actions_dict)
             obs, r, terminates, truncates, infos = self.env.step(actions_dict)
             # Map the obs
             self.obs = {"obs": self.obs2tensor(obs)}
