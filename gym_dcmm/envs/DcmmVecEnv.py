@@ -793,10 +793,11 @@ class DcmmVecEnv(gym.Env):
         base_len = int(np.random.choice(DcmmCfg.act_delay["base"]))
         arm_len = int(np.random.choice(DcmmCfg.act_delay["arm"]))
         hand_len = int(np.random.choice(DcmmCfg.act_delay["hand"]))
-
-        self.action_buffer["base"].set_maxlen(base_len)
-        self.action_buffer["arm"].set_maxlen(arm_len)
-        self.action_buffer["hand"].set_maxlen(hand_len)
+        self.action_buffer = {
+            "base": DynamicDelayBuffer(maxlen=base_len),
+            "arm": DynamicDelayBuffer(maxlen=arm_len),
+            "hand": DynamicDelayBuffer(maxlen=hand_len),
+        }
 
         # Get current stable action from PID
         base_action = np.array([0.0, 0.0])
@@ -804,9 +805,12 @@ class DcmmVecEnv(gym.Env):
         hand_action = DcmmCfg.hand_joints
 
         # Fill the buffer with initial control values
-        self.action_buffer["base"] = deque([base_action] * base_len, maxlen=base_len)
-        self.action_buffer["arm"] = deque([arm_action] * arm_len, maxlen=arm_len)
-        self.action_buffer["hand"] = deque([hand_action] * hand_len, maxlen=hand_len)
+        for i in range(base_len):
+            self.action_buffer["base"].append(base_action)
+        for i in range(arm_len):
+            self.action_buffer["arm"].append(arm_action)
+        for i in range(hand_len):
+            self.action_buffer["hand"].append(hand_action)
 
     def _reset_simulation(self):
         # Reset the data in Mujoco Simulation
@@ -1337,6 +1341,7 @@ class DcmmVecEnv(gym.Env):
             trigger_delta_hand, \
             delta_xyz, \
             delta_xyz_hand
+        self.reset()
         self.reset()
         # TODO:: 这里的action的维度需要后续调整 ss
         action = np.zeros(8)  # car 2 arm 4 (xyz roll) hand (1 or 2?)
