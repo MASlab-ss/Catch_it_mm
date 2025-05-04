@@ -106,7 +106,7 @@ class MJ_DCMM(object):
 
         self.plot_joint_names = ["front_left", "front_right", "rear_left", "rear_right"]
         self.plot_actuator_names = ["front_left", "front_right", "rear_left", "rear_right"]  
-        self.plot_pid = True
+        self.plot_pid = False
         self.plot_num = 0
         self.n_plot = 4
         self.q_log = [[] for _ in range(self.n_plot)]

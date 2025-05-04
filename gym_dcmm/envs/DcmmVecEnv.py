@@ -151,7 +151,7 @@ class DcmmVecEnv(gym.Env):
 
         self.plot_joint_names = ["piper_joint1", "piper_joint2", "piper_joint3", "piper_joint4", "piper_joint5", "piper_joint6"]
         self.plot_actuator_names = ["act_joint1", "act_joint2", "act_joint3", "act_joint4", "act_joint5", "act_joint6"]  
-        self.plot_pid = True
+        self.plot_pid = False
         self.plot_num = 0
         self.n_plot = 6
         self.q_log = [[] for _ in range(self.n_plot)]
@@ -836,8 +836,8 @@ class DcmmVecEnv(gym.Env):
         mujoco.mj_forward(self.Dcmm.model, self.Dcmm.data)
         mujoco.mj_forward(self.Dcmm.model_arm, self.Dcmm.data_arm)
         # self.Dcmm.data.qfrc_applied[:] = 0.0
-        print("qfrc_bias:", self.Dcmm.data.qfrc_bias)
-        print("Constraint forces (efc_force):", self.Dcmm.data.efc_force)
+        # print("qfrc_bias:", self.Dcmm.data.qfrc_bias)
+        # print("Constraint forces (efc_force):", self.Dcmm.data.efc_force)
     def reset(self):
         # Reset the basic simulation
         self._reset_simulation()
@@ -1315,7 +1315,7 @@ class DcmmVecEnv(gym.Env):
             trigger_delta_hand, \
             delta_xyz, \
             delta_xyz_hand
-        # self.reset()
+        self.reset()
         # TODO:: 这里的action的维度需要后续调整 ss
         action = np.zeros(8) #car 2 arm 4 (xyz roll) hand (1 or 2?)
         while not self._exit_requested:

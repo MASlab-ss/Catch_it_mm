@@ -51,6 +51,6 @@ if __name__ == "__main__":
         print("[INFO] Ctrl+C detected. Exiting simulation cleanly...")
         env._exit_requested = True  
         time.sleep(0.5) 
-        if env.plot_pid:
+        # if env.plot_pid:
             # env.plot_pid_curves() # for arm
-            env.Dcmm.plot_pid_curves() # for base
+            # env.Dcmm.plot_pid_curves() # for base

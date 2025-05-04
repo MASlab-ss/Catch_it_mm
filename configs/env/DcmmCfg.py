@@ -129,9 +129,9 @@ llim_steer = -50
 ulim_steer = 50
 
 ## Define PID params for the arm and hand.
-Kp_arm = np.array([3.0, 18.0, 18.0, 5.0, 10.0, 2.0])
+Kp_arm = np.array([30.0, 50.0, 50.0, 50.0, 50.0, 20.0])
 Ki_arm = np.array([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-3])
-Kd_arm = np.array([0.0, 0.0, 0, 0, 0, 0])
+Kd_arm = np.array([0.1, 0.0, 0, 0, 0, 0])
 llim_arm = np.array([-300.0, -300.0, -300.0, -50.0, -50.0, -20.0])
 ulim_arm = np.array([300.0, 300.0, 300.0, 50.0, 50.0, 20.0])
 
