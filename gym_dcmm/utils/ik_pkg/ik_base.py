@@ -18,7 +18,7 @@ def Damper(value, min, max):
         return value
 
 
-def IKBase(v_lin_x, v_lin_y, v_yaw=0.0):
+def IKBase(v_lin_x, v_yaw=0.0):
     """
     Calculate the inverse kinematics for a 4 wheel drive mobile base.
 
@@ -31,26 +31,26 @@ def IKBase(v_lin_x, v_lin_y, v_yaw=0.0):
         data: updated mujoco data object
     """
     # print("vvvv", v_lin_x, v_lin_y, v_yaw)
-    if math.fabs(v_lin_y) > 0.01:
-        print("the mobile base has wrong moving state!!!!!!!", v_lin_x, v_lin_y, v_yaw)
-    if math.fabs(v_lin_y) < 0.01:
-        v_lin_y = 0.0
-    if math.fabs(v_yaw) < 0.01:
-        v_yaw = 0.0
-    if (
-        math.fabs(v_lin_y) < 0.01
-        and math.fabs(v_lin_x) < 0.01
-        and math.fabs(v_yaw) < 0.01
-    ):
-        return np.array([0.0, 0.0, 0.0, 0.0])
+    # if math.fabs(v_lin_y) > 0.01:
+    #     print("the mobile base has wrong moving state!!!!!!!", v_lin_x, v_lin_y, v_yaw)
+    # if math.fabs(v_lin_y) < 0.01:
+    #     v_lin_y = 0.0
+    # if math.fabs(v_yaw) < 0.01:
+    #     v_yaw = 0.0
+    # if (
+    #     math.fabs(v_lin_y) < 0.01
+    #     and math.fabs(v_lin_x) < 0.01
+    #     and math.fabs(v_yaw) < 0.01
+    # ):
+    #     return np.array([0.0, 0.0, 0.0, 0.0])
 
     v_left = 0
     v_right = 0
     if math.fabs(v_yaw) > 0:
         r = v_lin_x / v_yaw
         h = DcmmCfg.RangerMiniV2Params["Half of the wheelbase"]
-        if r < h:
-            print("the mobile base vel is wrong!!!!!")
+        # if r < h:
+        #     print("the mobile base vel is wrong!!!!!")
         v_left = (r - h) * v_yaw
         v_right = (r + h) * v_yaw
     else:

@@ -33,13 +33,6 @@ from utils.util import *
 import configs.env.DcmmCfg as DcmmCfg
 from gym_dcmm.agents.MujocoDcmm import MJ_DCMM
 
-plt.ion()
-fig, ax = plt.subplots()
-(line_pos,) = ax.plot([], [], label="qpos")
-(line_target,) = ax.plot([], [], label="target", linestyle="--")
-ax.legend()
-ax.set_xlim(0, 100)
-ax.set_ylim(-10, 10)
 
 
 # os.environ['MUJOCO_GL'] = 'egl'
@@ -52,6 +45,7 @@ cmd_yaw = 0.0
 cmd_ang = 0.0
 trigger_delta = False
 trigger_delta_hand = False
+exit_requested = False
 
 
 def env_key_callback(keycode):
@@ -89,10 +83,10 @@ def env_key_callback(keycode):
             paused = not paused
     if keycode == 334:  # AKA + (on the numpad)
         trigger_delta = True
-        delta_xyz = 0.1
+        delta_xyz = 0.01
     if keycode == 333:  # AKA - (on the numpad)
         trigger_delta = True
-        delta_xyz = -0.1
+        delta_xyz = -0.01
     if keycode == 327:  # AKA 7 (on the numpad)
         trigger_delta_hand = True
         delta_xyz_hand = 0.2
@@ -154,6 +148,16 @@ class DcmmVecEnv(gym.Env):
         self.camera_name = camera_name
         self.object_name = object_name
         self.imshow_cam = imshow_cam
+
+        self.plot_joint_names = ["piper_joint1", "piper_joint2", "piper_joint3", "piper_joint4", "piper_joint5", "piper_joint6"]
+        self.plot_actuator_names = ["act_joint1", "act_joint2", "act_joint3", "act_joint4", "act_joint5", "act_joint6"]  
+        self.plot_pid = True
+        self.plot_num = 0
+        self.n_plot = 6
+        self.q_log = [[] for _ in range(self.n_plot)]
+        self.ctrl_log = [[] for _ in range(self.n_plot)]
+        self.target_log = [[] for _ in range(self.n_plot)]
+        self._exit_requested = False
         self.task = task
         self.img_size = img_size
         self.device = device
@@ -614,6 +618,9 @@ class DcmmVecEnv(gym.Env):
         self.action_buffer["base"].append(copy.deepcopy(self.Dcmm.target_base_vel[:]))
         self.action_buffer["arm"].append(copy.deepcopy(self.Dcmm.target_arm_qpos[:]))
         self.action_buffer["hand"].append(copy.deepcopy(self.Dcmm.target_hand_qpos[:]))
+        # if(self.plot_pid == True):
+        #     for i in range(self.n_plot):
+        #         self.target_log[i].append(self.Dcmm.target_arm_qpos[i])
         # print("target base vel", self.Dcmm.target_base_vel[:])
         # print("target arm qpos", self.Dcmm.target_arm_qpos[:])
         # print("target hand qpos", self.Dcmm.target_hand_qpos[:])
@@ -629,6 +636,11 @@ class DcmmVecEnv(gym.Env):
             self.Dcmm.data.qpos[11:17],
             self.Dcmm.data.time,
         )  # 6
+        if(self.plot_pid == True):
+            for i in range(self.n_plot):
+                self.q_log[i].append(self.Dcmm.data.qpos[11 + i])
+                self.ctrl_log[i].append(mv_arm[i])
+                self.target_log[i].append(self.action_buffer["arm"][0][i])
         # print("action_buffer[arm]", self.action_buffer["arm"][0])
         # print("arm current qpos", self.Dcmm.data.qpos[11:17])
         mv_hand = self.Dcmm.hand_pid.update(
@@ -766,17 +778,23 @@ class DcmmVecEnv(gym.Env):
 
     def random_delay(self):
         # Random the Delay Buffer Params in DCMM
-        self.action_buffer["base"].set_maxlen(
-            np.random.choice(DcmmCfg.act_delay["base"])
-        )
-        self.action_buffer["arm"].set_maxlen(np.random.choice(DcmmCfg.act_delay["arm"]))
-        self.action_buffer["hand"].set_maxlen(
-            np.random.choice(DcmmCfg.act_delay["hand"])
-        )
-        # Clear Buffer
-        self.action_buffer["base"].clear()
-        self.action_buffer["arm"].clear()
-        self.action_buffer["hand"].clear()
+        base_len = int(np.random.choice(DcmmCfg.act_delay["base"]))
+        arm_len = int(np.random.choice(DcmmCfg.act_delay["arm"]))
+        hand_len = int(np.random.choice(DcmmCfg.act_delay["hand"]))
+
+        self.action_buffer["base"].set_maxlen(base_len)
+        self.action_buffer["arm"].set_maxlen(arm_len)
+        self.action_buffer["hand"].set_maxlen(hand_len)
+
+        # Get current stable action from PID
+        base_action = np.array([0.0, 0.0])
+        arm_action = DcmmCfg.arm_joints
+        hand_action = DcmmCfg.hand_joints
+
+        # Fill the buffer with initial control values
+        self.action_buffer["base"] = deque([base_action] * base_len, maxlen=base_len)
+        self.action_buffer["arm"]  = deque([arm_action]  * arm_len,  maxlen=arm_len)
+        self.action_buffer["hand"] = deque([hand_action] * hand_len, maxlen=hand_len)
 
     def _reset_simulation(self):
         # Reset the data in Mujoco Simulation
@@ -791,6 +809,8 @@ class DcmmVecEnv(gym.Env):
         self.Dcmm.data.qpos[11:17] = DcmmCfg.arm_joints[:]
         self.Dcmm.data.qpos[17:19] = DcmmCfg.hand_joints[:]
         self.Dcmm.data_arm.qpos[0:6] = DcmmCfg.arm_joints[:]
+        self.Dcmm.data.qvel[:] = 0.0
+        self.Dcmm.data_arm.qvel[:] = 0.0
         self.Dcmm.data.body("object").xpos[0:3] = np.array([2, 2, 1])
         # Random 3D position TODO: Adjust to the fov
         self.random_object_pose()
@@ -808,9 +828,16 @@ class DcmmVecEnv(gym.Env):
         # Random Delay
         self.random_delay()
         # Forward Kinematics
+        self.Dcmm.data.ctrl[:] = 0.0
+        self.Dcmm.data.qfrc_applied[:] = 0.0
+        self.Dcmm.data_arm.ctrl[:] = 0.0
+        self.Dcmm.data_arm.qfrc_applied[:] = 0.0
+
         mujoco.mj_forward(self.Dcmm.model, self.Dcmm.data)
         mujoco.mj_forward(self.Dcmm.model_arm, self.Dcmm.data_arm)
-
+        # self.Dcmm.data.qfrc_applied[:] = 0.0
+        print("qfrc_bias:", self.Dcmm.data.qfrc_bias)
+        print("Constraint forces (efc_force):", self.Dcmm.data.efc_force)
     def reset(self):
         # Reset the basic simulation
         self._reset_simulation()
@@ -1059,7 +1086,7 @@ class DcmmVecEnv(gym.Env):
     def _step_mujoco_simulation(self, action_dict):
         ## TODO: Low-Pass-Filter the Base Velocity
         self.Dcmm.target_base_vel[0:2] = action_dict["base"]
-        action_arm = np.concatenate((action_dict["arm"], np.zeros(2)))
+        action_arm = np.concatenate((action_dict["arm"][0:3], np.zeros(1), np.array([action_dict["arm"][3]]), np.zeros(1)))
         result_QP, _ = self.Dcmm.move_ee_pose(action_arm)
         if result_QP[1]:
             self.arm_limit = True
@@ -1288,10 +1315,10 @@ class DcmmVecEnv(gym.Env):
             trigger_delta_hand, \
             delta_xyz, \
             delta_xyz_hand
-        self.reset()
+        # self.reset()
         # TODO:: 这里的action的维度需要后续调整 ss
         action = np.zeros(8) #car 2 arm 4 (xyz roll) hand (1 or 2?)
-        while True:
+        while not self._exit_requested:
             # Note: action's dim = 18, which includes 2 for the base, 4 for the arm, and 12 for the hand
             # print("##### stage: ", self.stage)
             # Keyboard control
@@ -1318,7 +1345,26 @@ class DcmmVecEnv(gym.Env):
             # print("")
             # print("actions_dict", actions_dict)
             observation, reward, terminated, truncated, info = self.step(actions_dict)
+            self.plot_num += 1
+    def plot_pid_curves(self):
+            dt = 0.0005
+            fig, axes = plt.subplots(self.n_plot, 1, figsize=(8, 3 * self.n_plot))
 
+            for i in range(self.n_plot):
+                # print(f"length of the q_log[{i}]: {len(self.q_log[i])}")
+                # print(f"length of the target_log[{i}]: {len(self.target_log[i])}")
+                # print(f"length of the ctrl_log[{i}]: {len(self.ctrl_log[i])}")
+                ax = axes[i] if self.n_plot > 1 else axes
+                t = np.arange(len(self.q_log[i])) * dt
+                ax.plot(t, self.q_log[i], label=f"{self.plot_joint_names[i]} pos")
+                ax.plot(t, self.target_log[i], linestyle='--', label='target')
+                ax.plot(t, self.ctrl_log[i], linestyle=':', label='ctrl')
+                ax.set_ylabel(self.plot_joint_names[i])
+                ax.set_xlabel("Time (s)")
+                ax.legend()
+                ax.grid(True)
+            plt.tight_layout()
+            plt.show() 
 
 if __name__ == "__main__":
     os.chdir("../../")
@@ -1348,4 +1394,4 @@ if __name__ == "__main__":
         env_time=2.5,
         steps_per_policy=20,
     )
-    env.run_test()
+

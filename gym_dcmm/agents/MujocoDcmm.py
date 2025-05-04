@@ -7,7 +7,7 @@ ABOUT: this file constains the basic class of the DexCatch with Mobile Manipulat
 
 import os
 import sys
-
+import matplotlib.pyplot as plt
 sys.path.append(os.path.abspath("../"))
 import copy
 import xml.etree.ElementTree as ET
@@ -96,13 +96,22 @@ class MJ_DCMM(object):
         self.data.qpos[11:17] = DcmmCfg.arm_joints[:]
         self.data.qpos[17:19] = DcmmCfg.hand_joints[:]
         self.data_arm.qpos[0:6] = DcmmCfg.arm_joints[:]
-
+        self.data.qvel[:] = 0.0
+        self.data_arm.qvel[:] = 0.0
         mujoco.mj_forward(self.model, self.data)
         mujoco.mj_forward(self.model_arm, self.data_arm)
         self.arm_base_pos = self.data.body("piper_link1").xpos
         self.current_ee_pos = copy.deepcopy(self.data_arm.body("piper_link6").xpos)
         self.current_ee_quat = copy.deepcopy(self.data_arm.body("piper_link6").xquat)
 
+        self.plot_joint_names = ["front_left", "front_right", "rear_left", "rear_right"]
+        self.plot_actuator_names = ["front_left", "front_right", "rear_left", "rear_right"]  
+        self.plot_pid = True
+        self.plot_num = 0
+        self.n_plot = 4
+        self.q_log = [[] for _ in range(self.n_plot)]
+        self.ctrl_log = [[] for _ in range(self.n_plot)]
+        self.target_log = [[] for _ in range(self.n_plot)]
         ## Get the joint ID for the body, base, arm, hand and object
         # Note: The joint id of the mm body is 0 by default
         try:
@@ -274,7 +283,7 @@ class MJ_DCMM(object):
         print("\nSimulation Timestep: ", self.model.opt.timestep)
 
     def move_base_vel(self, target_base_vel):
-        self.drive_vel = IKBase(target_base_vel[0], 0, target_base_vel[1])
+        self.drive_vel = IKBase(target_base_vel[0], target_base_vel[1])
         # print("self_drive_vel ikbase:", self.drive_vel)
         ####################
         ## No bugs so far ##
@@ -298,6 +307,11 @@ class MJ_DCMM(object):
         mv_drive = self.drive_pid.update(
             self.drive_vel, current_drive_vel, self.data.time
         )
+        if self.plot_pid:
+            for i in range(self.n_plot):
+                self.q_log[i].append(current_drive_vel[i])
+                self.ctrl_log[i].append(mv_drive[i])
+                self.target_log[i].append(self.drive_vel[i])
         # print("pid mv_drive", mv_drive)
         for i in range(4):
             if current_drive_vel[i] > 0 and current_drive_vel[i] < self.drive_vel[i]:
@@ -324,6 +338,10 @@ class MJ_DCMM(object):
         r_delta = R.from_euler("zxy", delta_pose[3:6])
         r_current = R.from_quat(self.current_ee_quat)
         target_quat = (r_delta * r_current).as_quat()
+        # print("current arm end pose", self.current_ee_pos)
+        # print("target arm end pose", target_pos)
+        # print("current arm end quat", self.current_ee_quat)
+        # print("target arm end quat", target_quat)
         result_QP = self.ik_arm_solve(target_pos, target_quat)
         if DEBUG_ARM:
             print("result_QP: ", result_QP)
@@ -444,3 +462,23 @@ class MJ_DCMM(object):
             - self.data.body("arm_base").xpos
         )
         self.cam_init = True
+
+    def plot_pid_curves(self):
+        dt = 0.0005
+        fig, axes = plt.subplots(self.n_plot, 1, figsize=(8, 3 * self.n_plot))
+
+        for i in range(self.n_plot):
+            # print(f"length of the q_log[{i}]: {len(self.q_log[i])}")
+            # print(f"length of the target_log[{i}]: {len(self.target_log[i])}")
+            # print(f"length of the ctrl_log[{i}]: {len(self.ctrl_log[i])}")
+            ax = axes[i] if self.n_plot > 1 else axes
+            t = np.arange(len(self.q_log[i])) * dt
+            ax.plot(t, self.q_log[i], label=f"{self.plot_joint_names[i]} vel")
+            ax.plot(t, self.target_log[i], linestyle='--', label='target')
+            # ax.plot(t, self.ctrl_log[i], linestyle=':', label='ctrl')
+            ax.set_ylabel(self.plot_joint_names[i])
+            ax.set_xlabel("Time (s)")
+            ax.legend()
+            ax.grid(True)
+        plt.tight_layout()
+        plt.show() 

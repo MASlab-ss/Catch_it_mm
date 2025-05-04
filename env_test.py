@@ -1,8 +1,8 @@
 import os
 
 # 必须在导入任何 Mujoco 相关模块前设置
-# os.environ['MUJOCO_GL'] = 'glfw'
-os.environ["MUJOCO_GL"] = "egl"
+os.environ['MUJOCO_GL'] = 'glfw'
+# os.environ["MUJOCO_GL"] = "egl"
 
 import sys
 
@@ -15,7 +15,7 @@ print(os.getcwd())
 from decorators import *
 
 from gym_dcmm.envs import DcmmVecEnv
-
+import time
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Args for DcmmVecEnv")
     parser.add_argument(
@@ -45,4 +45,12 @@ if __name__ == "__main__":
         steps_per_policy=20,
     )
 
-    env.run_test()
+    try:
+        env.run_test()
+    except KeyboardInterrupt:
+        print("[INFO] Ctrl+C detected. Exiting simulation cleanly...")
+        env._exit_requested = True  
+        time.sleep(0.5) 
+        if env.plot_pid:
+            # env.plot_pid_curves() # for arm
+            env.Dcmm.plot_pid_curves() # for base

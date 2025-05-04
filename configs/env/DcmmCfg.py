@@ -116,20 +116,20 @@ act_delay = {
 
 ## Define PID params for wheel drive and steering.
 # driving
-Kp_drive = 10
+Kp_drive = 50
 Ki_drive = 1e-3
 Kd_drive = 1e-1
 llim_drive = -20
 ulim_drive = 20
 # steering
-Kp_steer = 50.0
+Kp_steer = 100.0
 Ki_steer = 2.5
 Kd_steer = 7.5
 llim_steer = -50
 ulim_steer = 50
 
 ## Define PID params for the arm and hand.
-Kp_arm = np.array([3.0, 4.0, 4.0, 5.0, 2.0, 2.0])
+Kp_arm = np.array([3.0, 18.0, 18.0, 5.0, 10.0, 2.0])
 Ki_arm = np.array([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-3])
 Kd_arm = np.array([0.0, 0.0, 0, 0, 0, 0])
 llim_arm = np.array([-300.0, -300.0, -300.0, -50.0, -50.0, -20.0])

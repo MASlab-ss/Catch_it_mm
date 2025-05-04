@@ -90,7 +90,7 @@
                     <joint name="piper_joint2" pos="0 0 0" axis="0 0 1" limited="true" range="0 3.14" />
                     <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="link2" />
                     <body name="piper_link3" pos="0.28503 0 0" quat="0.770418 0 0 0.637539">
-                        <inertial pos="0.0156727 0.104467 0.000508487" quat="0.506574 0.477898 -0.524055 0.490268" mass="0.1" diaginertia="0.000241862 0.000222142 0.000100381" />
+                        <inertial pos="0.0156727 0.104467 0.000508487" quat="0.506574 0.477898 -0.524055 0.490268" mass="0.05" diaginertia="0.000241862 0.000222142 0.000100381" />
                         <joint name="piper_joint3" pos="0 0 0" axis="0 0 1" limited="true" range="-2.697 0" />
                         <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="link3" />
                         <body name="piper_link4" pos="0.021984 0.25075 0" quat="0.707105 -0.707108 0 0">
